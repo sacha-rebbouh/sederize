@@ -1,0 +1,9 @@
+{
+  "name": "Sederize",
+  "short_name": "Sederize",
+  "description": "Order from Chaos. A structured task management system for high-performance individuals.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f172a"
+}

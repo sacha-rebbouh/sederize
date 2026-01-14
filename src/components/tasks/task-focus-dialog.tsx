@@ -1,0 +1,402 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { format } from 'date-fns';
+import {
+  Calendar as CalendarIcon,
+  Clock,
+  Flag,
+  Link as LinkIcon,
+  CheckCircle2,
+  Circle,
+  Hourglass,
+  RotateCcw,
+  Trash2,
+} from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Task, PriorityLevel, PRIORITY_LABELS, PRIORITY_COLORS } from '@/types/database';
+import { useUpdateTask, useCompleteTask, useDeleteTask } from '@/hooks/use-tasks';
+import { useActiveSubjects } from '@/hooks/use-subjects';
+import { cn } from '@/lib/utils';
+import { SnoozeBadge } from '@/components/ui/snooze-badge';
+import { MarkdownContent } from '@/components/ui/markdown-editor';
+import { SubtaskList } from './subtask-list';
+import { AttachmentList } from './attachment-list';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+
+interface TaskFocusDialogProps {
+  task: Task | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogProps) {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [doDate, setDoDate] = useState<Date | undefined>();
+  const [doTime, setDoTime] = useState('');
+  const [priority, setPriority] = useState<PriorityLevel>(0);
+  const [subjectId, setSubjectId] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+  const { data: subjects } = useActiveSubjects();
+  const updateTask = useUpdateTask();
+  const completeTask = useCompleteTask();
+  const deleteTask = useDeleteTask();
+
+  // Reset state when task changes
+  useEffect(() => {
+    if (task) {
+      setTitle(task.title);
+      setDescription(task.description || '');
+      setDoDate(task.do_date ? new Date(task.do_date) : undefined);
+      setDoTime(task.do_time?.slice(0, 5) || '');
+      setPriority((task.priority ?? 0) as PriorityLevel);
+      setSubjectId(task.subject_id);
+      setIsEditing(false);
+    }
+  }, [task]);
+
+  if (!task) return null;
+
+  const handleSave = () => {
+    // Normalize time (add :00 if only hour provided)
+    let normalizedTime = doTime;
+    if (normalizedTime && !normalizedTime.includes(':')) {
+      normalizedTime = `${normalizedTime.padStart(2, '0')}:00`;
+    }
+
+    updateTask.mutate(
+      {
+        id: task.id,
+        title,
+        description: description || null,
+        do_date: doDate ? format(doDate, 'yyyy-MM-dd') : null,
+        do_time: normalizedTime || null,
+        priority,
+        subject_id: subjectId,
+      },
+      {
+        onSuccess: () => {
+          toast.success('Task updated');
+          setIsEditing(false);
+          onOpenChange(false);
+        },
+      }
+    );
+  };
+
+  const handleComplete = () => {
+    if (task.status === 'done') {
+      updateTask.mutate({ id: task.id, status: 'todo' });
+    } else {
+      completeTask.mutate(task.id, {
+        onSuccess: () => {
+          toast.success('Task completed', {
+            action: {
+              label: 'Undo',
+              onClick: () => updateTask.mutate({ id: task.id, status: 'todo' }),
+            },
+          });
+          onOpenChange(false);
+        },
+      });
+    }
+  };
+
+  const handleDelete = () => {
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = () => {
+    deleteTask.mutate(task.id, {
+      onSuccess: () => {
+        toast.success('Task deleted');
+        setDeleteConfirmOpen(false);
+        onOpenChange(false);
+      },
+    });
+  };
+
+  const isDone = task.status === 'done';
+  const isWaitingFor = task.status === 'waiting_for';
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Task Details</DialogTitle>
+          <DialogDescription>View and edit task details</DialogDescription>
+        </DialogHeader>
+
+        {/* Header with status and actions */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <button onClick={handleComplete} className="flex-shrink-0">
+              {isDone ? (
+                <CheckCircle2 className="h-6 w-6 text-primary" />
+              ) : isWaitingFor ? (
+                <Hourglass className="h-6 w-6 text-amber-500" />
+              ) : (
+                <Circle className="h-6 w-6 text-muted-foreground hover:text-primary transition-colors" />
+              )}
+            </button>
+
+            {/* Status badges */}
+            <div className="flex items-center gap-2">
+              {task.priority > 0 && (
+                <Badge
+                  variant="outline"
+                  className={cn('text-xs', PRIORITY_COLORS[priority])}
+                >
+                  <Flag className="h-3 w-3 mr-1" />
+                  {PRIORITY_LABELS[priority]}
+                </Badge>
+              )}
+              <SnoozeBadge count={task.snooze_count ?? 0} />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {!isEditing ? (
+              <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                Edit
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>
+                  Cancel
+                </Button>
+                <Button size="sm" onClick={handleSave} disabled={updateTask.isPending}>
+                  Save
+                </Button>
+              </>
+            )}
+            <Button variant="ghost" size="icon" onClick={handleDelete}>
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Title */}
+        {isEditing ? (
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Task title"
+            className="text-lg font-semibold"
+          />
+        ) : (
+          <h2 className={cn('text-lg font-semibold', isDone && 'line-through text-muted-foreground')}>
+            {task.title}
+          </h2>
+        )}
+
+        {/* Description */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-muted-foreground">Description</label>
+          {isEditing ? (
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Add a description... (Markdown supported)"
+              rows={4}
+            />
+          ) : (
+            <div className="min-h-[60px] p-3 rounded-md bg-muted/50 text-sm">
+              {description ? (
+                <MarkdownContent content={description} />
+              ) : (
+                <span className="text-muted-foreground italic">No description</span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Waiting for note */}
+        {isWaitingFor && task.waiting_for_note && (
+          <div className="p-3 rounded-md bg-amber-500/10 border border-amber-500/30">
+            <div className="flex items-center gap-2 text-amber-700 dark:text-amber-500">
+              <Hourglass className="h-4 w-4" />
+              <span className="text-sm font-medium">Waiting for:</span>
+            </div>
+            <p className="text-sm mt-1">{task.waiting_for_note}</p>
+          </div>
+        )}
+
+        <Separator />
+
+        {/* Metadata grid */}
+        <div className="grid grid-cols-2 gap-4">
+          {/* Date */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <CalendarIcon className="h-4 w-4" />
+              Due Date
+            </label>
+            {isEditing ? (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start">
+                    {doDate ? format(doDate, 'PPP') : 'Pick a date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={doDate}
+                    onSelect={setDoDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            ) : (
+              <p className="text-sm">
+                {task.do_date ? format(new Date(task.do_date), 'PPP') : 'No date set'}
+              </p>
+            )}
+          </div>
+
+          {/* Time */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Time
+            </label>
+            {isEditing ? (
+              <Input
+                type="time"
+                value={doTime}
+                onChange={(e) => setDoTime(e.target.value)}
+              />
+            ) : (
+              <p className="text-sm">{task.do_time?.slice(0, 5) || 'No time set'}</p>
+            )}
+          </div>
+
+          {/* Priority */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Flag className="h-4 w-4" />
+              Priority
+            </label>
+            {isEditing ? (
+              <Select
+                value={priority.toString()}
+                onValueChange={(v) => setPriority(parseInt(v) as PriorityLevel)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Normal</SelectItem>
+                  <SelectItem value="1">High</SelectItem>
+                  <SelectItem value="2">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : (
+              <p className={cn('text-sm', PRIORITY_COLORS[task.priority as PriorityLevel])}>
+                {PRIORITY_LABELS[task.priority as PriorityLevel]}
+              </p>
+            )}
+          </div>
+
+          {/* Subject */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <LinkIcon className="h-4 w-4" />
+              Subject
+            </label>
+            {isEditing ? (
+              <Select
+                value={subjectId || 'inbox'}
+                onValueChange={(v) => setSubjectId(v === 'inbox' ? null : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="inbox">Inbox</SelectItem>
+                  {subjects?.map((subject) => (
+                    <SelectItem key={subject.id} value={subject.id}>
+                      {subject.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <p className="text-sm">
+                {subjects?.find((s) => s.id === task.subject_id)?.title || 'Inbox'}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Subtasks */}
+        {!task.parent_task_id && (
+          <>
+            <Separator />
+            <SubtaskList parentTaskId={task.id} />
+          </>
+        )}
+
+        {/* Attachments */}
+        <Separator />
+        <AttachmentList taskId={task.id} />
+
+        {/* Metadata */}
+        <div className="text-xs text-muted-foreground space-y-1 pt-4 border-t">
+          <p>Created: {format(new Date(task.created_at), 'PPP p')}</p>
+          <p>Updated: {format(new Date(task.updated_at), 'PPP p')}</p>
+          {task.completed_at && (
+            <p>Completed: {format(new Date(task.completed_at), 'PPP p')}</p>
+          )}
+          {task.snooze_count > 0 && (
+            <p className="flex items-center gap-1">
+              <RotateCcw className="h-3 w-3" />
+              Snoozed {task.snooze_count} time{task.snooze_count > 1 ? 's' : ''}
+            </p>
+          )}
+        </div>
+      </DialogContent>
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="Supprimer cette tâche ?"
+        description="Cette action est irréversible. La tâche sera définitivement supprimée."
+        confirmLabel="Supprimer"
+        cancelLabel="Annuler"
+        variant="destructive"
+        onConfirm={confirmDelete}
+      />
+    </Dialog>
+  );
+}
