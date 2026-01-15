@@ -162,7 +162,7 @@ export function MoveToSubjectDialog({
         {/* Hierarchical list */}
         <ScrollArea className="flex-1 -mx-6 px-6">
           <div className="space-y-1 py-2">
-            <AnimatePresence mode="popLayout">
+            <AnimatePresence mode="sync">
               {filteredData?.map((category) => (
                 <motion.div
                   key={category.id}

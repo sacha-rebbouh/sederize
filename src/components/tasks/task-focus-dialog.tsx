@@ -9,7 +9,6 @@ import {
   Flag,
   Link as LinkIcon,
   CheckCircle2,
-  Circle,
   Hourglass,
   RotateCcw,
   Trash2,
@@ -41,47 +40,87 @@ import {
 } from '@/components/ui/select';
 import { Task, PriorityLevel, PRIORITY_LABELS, PRIORITY_COLORS } from '@/types/database';
 import { useUpdateTask, useCompleteTask, useDeleteTask } from '@/hooks/use-tasks';
-import { useActiveSubjects } from '@/hooks/use-subjects';
+import { WaterfallPicker, WaterfallValue } from './waterfall-picker';
 import { cn } from '@/lib/utils';
 import { SnoozeBadge } from '@/components/ui/snooze-badge';
 import { MarkdownContent } from '@/components/ui/markdown-editor';
-import { SubtaskList } from './subtask-list';
 import { AttachmentList } from './attachment-list';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
+interface ExtendedTask extends Task {
+  theme?: { id: string; category_id?: string | null } | null;
+  category?: { id: string } | null;
+  subject?: { theme_id: string } | null;
+}
+
 interface TaskFocusDialogProps {
-  task: Task | null;
+  task: ExtendedTask | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+// Helper to get the resolved waterfall value from a task
+function getResolvedWaterfall(task: ExtendedTask | null): WaterfallValue {
+  if (!task) {
+    return { categoryId: null, themeId: null, subjectId: null };
+  }
+  // If subject_id is set, the assignment is at subject level
+  if (task.subject_id) {
+    return {
+      categoryId: task.category_id || task.theme?.category_id || task.category?.id || null,
+      themeId: task.theme_id || task.subject?.theme_id || task.theme?.id || null,
+      subjectId: task.subject_id,
+    };
+  }
+  // If only theme_id is set, the assignment is at theme level
+  if (task.theme_id || task.theme?.id) {
+    return {
+      categoryId: task.category_id || task.theme?.category_id || task.category?.id || null,
+      themeId: task.theme_id || task.theme?.id || null,
+      subjectId: null,
+    };
+  }
+  // If only category_id is set, the assignment is at category level
+  if (task.category_id || task.category?.id) {
+    return {
+      categoryId: task.category_id || task.category?.id || null,
+      themeId: null,
+      subjectId: null,
+    };
+  }
+  // Inbox (no assignment)
+  return { categoryId: null, themeId: null, subjectId: null };
+}
+
 export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogProps) {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [doDate, setDoDate] = useState<Date | undefined>();
-  const [doTime, setDoTime] = useState('');
-  const [priority, setPriority] = useState<PriorityLevel>(0);
-  const [subjectId, setSubjectId] = useState<string | null>(null);
+  // Initialize state directly from task to avoid flash on first open
+  const [title, setTitle] = useState(task?.title || '');
+  const [description, setDescription] = useState(task?.description || '');
+  const [doDate, setDoDate] = useState<Date | undefined>(task?.do_date ? new Date(task.do_date) : undefined);
+  const [doTime, setDoTime] = useState(task?.do_time?.slice(0, 5) || '');
+  const [priority, setPriority] = useState<PriorityLevel>((task?.priority ?? 0) as PriorityLevel);
+  const [waterfall, setWaterfall] = useState<WaterfallValue>(getResolvedWaterfall(task));
   const [isEditing, setIsEditing] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [prevTaskId, setPrevTaskId] = useState(task?.id);
 
-  const { data: subjects } = useActiveSubjects();
   const updateTask = useUpdateTask();
   const completeTask = useCompleteTask();
   const deleteTask = useDeleteTask();
 
-  // Reset state when task changes
+  // Only reset state when task ID changes (not on every task prop change)
   useEffect(() => {
-    if (task) {
+    if (task && task.id !== prevTaskId) {
+      setPrevTaskId(task.id);
       setTitle(task.title);
       setDescription(task.description || '');
       setDoDate(task.do_date ? new Date(task.do_date) : undefined);
       setDoTime(task.do_time?.slice(0, 5) || '');
       setPriority((task.priority ?? 0) as PriorityLevel);
-      setSubjectId(task.subject_id);
+      setWaterfall(getResolvedWaterfall(task));
       setIsEditing(false);
     }
-  }, [task]);
+  }, [task, prevTaskId]);
 
   if (!task) return null;
 
@@ -100,7 +139,9 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
         do_date: doDate ? format(doDate, 'yyyy-MM-dd') : null,
         do_time: normalizedTime || null,
         priority,
-        subject_id: subjectId,
+        subject_id: waterfall.subjectId,
+        theme_id: waterfall.themeId,
+        category_id: waterfall.categoryId,
       },
       {
         onSuccess: () => {
@@ -158,28 +199,22 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
         {/* Header with status and actions */}
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <button onClick={handleComplete} className="flex-shrink-0">
-              {isDone ? (
-                <CheckCircle2 className="h-6 w-6 text-primary" />
-              ) : isWaitingFor ? (
-                <Hourglass className="h-6 w-6 text-amber-500" />
-              ) : (
-                <Circle className="h-6 w-6 text-muted-foreground hover:text-primary transition-colors" />
-              )}
-            </button>
-
             {/* Status badges */}
             <div className="flex items-center gap-2">
-              {task.priority > 0 && (
-                <Badge
-                  variant="outline"
-                  className={cn('text-xs', PRIORITY_COLORS[priority])}
-                >
-                  <Flag className="h-3 w-3 mr-1" />
-                  {PRIORITY_LABELS[priority]}
+              <Badge
+                variant="outline"
+                className={cn('text-xs', PRIORITY_COLORS[priority])}
+              >
+                <Flag className="h-3 w-3 mr-1" />
+                {PRIORITY_LABELS[priority]}
+              </Badge>
+              <SnoozeBadge count={task.snooze_count ?? 0} />
+              {isWaitingFor && (
+                <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+                  <Hourglass className="h-3 w-3 mr-1" />
+                  En attente
                 </Badge>
               )}
-              <SnoozeBadge count={task.snooze_count ?? 0} />
             </div>
           </div>
 
@@ -203,6 +238,28 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
             </Button>
           </div>
         </div>
+
+        {/* Mark as done button */}
+        <Button
+          onClick={handleComplete}
+          variant={isDone ? 'outline' : 'default'}
+          className={cn(
+            'w-full',
+            !isDone && 'bg-green-600 hover:bg-green-700 text-white'
+          )}
+        >
+          {isDone ? (
+            <>
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Marquer non terminée
+            </>
+          ) : (
+            <>
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              Marquer terminée
+            </>
+          )}
+        </Button>
 
         <Separator />
 
@@ -317,9 +374,10 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="0">Normal</SelectItem>
-                  <SelectItem value="1">High</SelectItem>
-                  <SelectItem value="2">Urgent</SelectItem>
+                  <SelectItem value="0">Low</SelectItem>
+                  <SelectItem value="1">Normal</SelectItem>
+                  <SelectItem value="2">High</SelectItem>
+                  <SelectItem value="3">Urgent</SelectItem>
                 </SelectContent>
               </Select>
             ) : (
@@ -329,44 +387,27 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
             )}
           </div>
 
-          {/* Subject */}
+          {/* Assignation */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <LinkIcon className="h-4 w-4" />
-              Subject
+              Assignation
             </label>
             {isEditing ? (
-              <Select
-                value={subjectId || 'inbox'}
-                onValueChange={(v) => setSubjectId(v === 'inbox' ? null : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="inbox">Inbox</SelectItem>
-                  {subjects?.map((subject) => (
-                    <SelectItem key={subject.id} value={subject.id}>
-                      {subject.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <WaterfallPicker
+                value={waterfall}
+                onChange={setWaterfall}
+                className="w-full"
+              />
             ) : (
               <p className="text-sm">
-                {subjects?.find((s) => s.id === task.subject_id)?.title || 'Inbox'}
+                {waterfall.subjectId ? 'Sujet assigné' :
+                 waterfall.themeId ? 'Thème assigné' :
+                 waterfall.categoryId ? 'Catégorie assignée' : 'Inbox'}
               </p>
             )}
           </div>
         </div>
-
-        {/* Subtasks */}
-        {!task.parent_task_id && (
-          <>
-            <Separator />
-            <SubtaskList parentTaskId={task.id} />
-          </>
-        )}
 
         {/* Attachments */}
         <Separator />

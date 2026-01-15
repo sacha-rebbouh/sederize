@@ -11,9 +11,10 @@ interface PriorityBadgeProps {
 }
 
 const PRIORITY_BG: Record<PriorityLevel, string> = {
-  0: 'bg-muted hover:bg-muted/80',
-  1: 'bg-amber-100 dark:bg-amber-900/30',
-  2: 'bg-red-100 dark:bg-red-900/30',
+  0: 'bg-blue-100 dark:bg-blue-900/30',
+  1: 'bg-muted hover:bg-muted/80',
+  2: 'bg-amber-100 dark:bg-amber-900/30',
+  3: 'bg-red-100 dark:bg-red-900/30',
 };
 
 export function PriorityBadge({
@@ -24,28 +25,6 @@ export function PriorityBadge({
 }: PriorityBadgeProps) {
   const isClickable = !!onClick;
   const padding = size === 'sm' ? 'px-2 py-0.5' : 'px-2.5 py-1';
-
-  // Don't show badge for normal priority unless clickable
-  if (priority === 0 && !isClickable) {
-    return null;
-  }
-
-  // For normal priority when clickable, show a subtle indicator
-  if (priority === 0 && isClickable) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        className={cn(
-          'inline-flex items-center rounded-md text-xs font-medium transition-colors',
-          'px-2 py-0.5 bg-muted/50 text-muted-foreground hover:bg-muted',
-          className
-        )}
-      >
-        Priority
-      </button>
-    );
-  }
 
   return (
     <button
@@ -67,7 +46,7 @@ export function PriorityBadge({
   );
 }
 
-// Helper to cycle priority: Low -> Medium -> High -> Low
+// Helper to cycle priority: Low -> Normal -> High -> Urgent -> Low
 export function cyclePriority(current: PriorityLevel): PriorityLevel {
-  return ((current + 1) % 3) as PriorityLevel;
+  return ((current + 1) % 4) as PriorityLevel;
 }

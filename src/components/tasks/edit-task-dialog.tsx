@@ -31,13 +31,52 @@ import { Task, PriorityLevel, Label as LabelType } from '@/types/database';
 import { useUpdateTask } from '@/hooks/use-tasks';
 import { useTaskLabels, useSetTaskLabels } from '@/hooks/use-labels';
 import { LabelPicker } from './label-picker';
-import { SubjectPicker } from './subject-picker';
+import { WaterfallPicker, WaterfallValue } from './waterfall-picker';
 import { cn } from '@/lib/utils';
 
 interface EditTaskDialogProps {
-  task: Task;
+  task: Task & {
+    // Extended fields that may come from TaskWithRelations
+    theme?: { id: string; category_id?: string | null } | null;
+    category?: { id: string } | null;
+    subject?: { theme_id: string } | null;
+  };
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+// Helper to get the resolved waterfall value from a task
+function getResolvedWaterfall(task: EditTaskDialogProps['task']): WaterfallValue {
+  // If subject_id is set, the assignment is at subject level
+  if (task.subject_id) {
+    return {
+      categoryId: task.category_id || task.theme?.category_id || task.category?.id || null,
+      themeId: task.theme_id || task.subject?.theme_id || task.theme?.id || null,
+      subjectId: task.subject_id,
+    };
+  }
+  // If only theme_id is set, the assignment is at theme level
+  if (task.theme_id || task.theme?.id) {
+    return {
+      categoryId: task.category_id || task.theme?.category_id || task.category?.id || null,
+      themeId: task.theme_id || task.theme?.id || null,
+      subjectId: null,
+    };
+  }
+  // If only category_id is set, the assignment is at category level
+  if (task.category_id || task.category?.id) {
+    return {
+      categoryId: task.category_id || task.category?.id || null,
+      themeId: null,
+      subjectId: null,
+    };
+  }
+  // Inbox (no assignment)
+  return {
+    categoryId: null,
+    themeId: null,
+    subjectId: null,
+  };
 }
 
 export function EditTaskDialog({
@@ -52,7 +91,7 @@ export function EditTaskDialog({
   );
   const [doTime, setDoTime] = useState(task.do_time?.slice(0, 5) || '');
   const [priority, setPriority] = useState<PriorityLevel>((task.priority ?? 0) as PriorityLevel);
-  const [subjectId, setSubjectId] = useState<string | null>(task.subject_id);
+  const [waterfall, setWaterfall] = useState<WaterfallValue>(getResolvedWaterfall(task));
   const [selectedLabels, setSelectedLabels] = useState<LabelType[]>([]);
 
   const updateTask = useUpdateTask();
@@ -73,7 +112,7 @@ export function EditTaskDialog({
       setDoDate(task.do_date ? new Date(task.do_date) : undefined);
       setDoTime(task.do_time?.slice(0, 5) || '');
       setPriority((task.priority ?? 0) as PriorityLevel);
-      setSubjectId(task.subject_id);
+      setWaterfall(getResolvedWaterfall(task));
     }
   }, [open, task]);
 
@@ -84,7 +123,7 @@ export function EditTaskDialog({
     setIsSaving(true);
 
     try {
-      // Update task
+      // Update task with waterfall assignment
       await updateTask.mutateAsync({
         id: task.id,
         title,
@@ -92,7 +131,9 @@ export function EditTaskDialog({
         do_date: doDate ? format(doDate, 'yyyy-MM-dd') : null,
         do_time: doTime || null,
         priority,
-        subject_id: subjectId,
+        subject_id: waterfall.subjectId,
+        theme_id: waterfall.themeId,
+        category_id: waterfall.categoryId,
       });
 
       // Update labels (optional - don't fail if labels table doesn't exist)
@@ -116,7 +157,7 @@ export function EditTaskDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>Modifier la tâche</DialogTitle>
         </DialogHeader>
@@ -226,17 +267,23 @@ export function EditTaskDialog({
                 <SelectContent>
                   <SelectItem value="0">
                     <div className="flex items-center gap-2">
+                      <Flag className="h-4 w-4 text-blue-500" />
+                      Low
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="1">
+                    <div className="flex items-center gap-2">
                       <Flag className="h-4 w-4 text-muted-foreground" />
                       Normal
                     </div>
                   </SelectItem>
-                  <SelectItem value="1">
+                  <SelectItem value="2">
                     <div className="flex items-center gap-2">
                       <Flag className="h-4 w-4 text-amber-500" />
                       High
                     </div>
                   </SelectItem>
-                  <SelectItem value="2">
+                  <SelectItem value="3">
                     <div className="flex items-center gap-2">
                       <Flag className="h-4 w-4 text-red-500" />
                       Urgent
@@ -246,12 +293,12 @@ export function EditTaskDialog({
               </Select>
             </div>
 
-            {/* Subject Selector */}
+            {/* Waterfall Assignment */}
             <div className="space-y-2">
-              <Label>Projet</Label>
-              <SubjectPicker
-                value={subjectId}
-                onChange={setSubjectId}
+              <Label>Assignation</Label>
+              <WaterfallPicker
+                value={waterfall}
+                onChange={setWaterfall}
                 className="w-full"
               />
             </div>

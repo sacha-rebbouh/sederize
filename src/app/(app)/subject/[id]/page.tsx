@@ -372,7 +372,7 @@ export default function SubjectPage({ params }: SubjectPageProps) {
                   </motion.div>
                 ) : (
                   <motion.div className="space-y-2" variants={containerVariants}>
-                    <AnimatePresence mode="popLayout">
+                    <AnimatePresence mode="sync">
                       {todoTasks.map((task) => (
                         <motion.div key={task.id} variants={itemVariants} layout>
                           <TaskCard task={task} theme={subject.theme} labels={task.labels} />
@@ -406,7 +406,7 @@ export default function SubjectPage({ params }: SubjectPageProps) {
                       </Badge>
                     </div>
                     <div className="space-y-2">
-                      <AnimatePresence mode="popLayout">
+                      <AnimatePresence mode="sync">
                         {waitingTasks.map((task) => (
                           <motion.div
                             key={task.id}

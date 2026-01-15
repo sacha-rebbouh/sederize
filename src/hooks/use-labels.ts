@@ -2,12 +2,14 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
+import { queryKeys } from '@/lib/query-keys';
+import { STALE_TIMES } from '@/providers/query-provider';
 import { Label, CreateLabelInput, UpdateLabelInput } from '@/types/database';
 
 // Fetch all labels for the current user
 export function useLabels() {
   return useQuery({
-    queryKey: ['labels'],
+    queryKey: queryKeys.labels.lists(),
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
@@ -18,13 +20,14 @@ export function useLabels() {
       if (error) throw error;
       return (data || []) as Label[];
     },
+    staleTime: STALE_TIMES.labels,
   });
 }
 
 // Get labels for a specific task
 export function useTaskLabels(taskId: string) {
   return useQuery({
-    queryKey: ['task-labels', taskId],
+    queryKey: queryKeys.labels.byTask(taskId),
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
@@ -37,6 +40,7 @@ export function useTaskLabels(taskId: string) {
       return (data?.map((d: any) => d.label).filter(Boolean) || []) as Label[];
     },
     enabled: !!taskId,
+    staleTime: STALE_TIMES.labels,
   });
 }
 
@@ -67,7 +71,7 @@ export function useCreateLabel() {
       return data as Label;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['labels'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.labels.all });
     },
   });
 }
@@ -91,7 +95,9 @@ export function useUpdateLabel() {
       return data as Label;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['labels'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.labels.all });
+      // Label updates affect task displays
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.lists() });
     },
   });
 }
@@ -108,8 +114,9 @@ export function useDeleteLabel() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['labels'] });
-      queryClient.invalidateQueries({ queryKey: ['task-labels'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.labels.all });
+      // Label deletion affects task displays
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.lists() });
     },
   });
 }
@@ -131,8 +138,9 @@ export function useAddLabelToTask() {
       if (error) throw error;
     },
     onSuccess: (_, { taskId }) => {
-      queryClient.invalidateQueries({ queryKey: ['task-labels', taskId] });
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.labels.byTask(taskId) });
+      // Only invalidate lists that show this task (granular invalidation)
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.lists() });
     },
   });
 }
@@ -153,8 +161,8 @@ export function useRemoveLabelFromTask() {
       if (error) throw error;
     },
     onSuccess: (_, { taskId }) => {
-      queryClient.invalidateQueries({ queryKey: ['task-labels', taskId] });
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.labels.byTask(taskId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.lists() });
     },
   });
 }
@@ -190,8 +198,8 @@ export function useSetTaskLabels() {
       }
     },
     onSuccess: (_, { taskId }) => {
-      queryClient.invalidateQueries({ queryKey: ['task-labels', taskId] });
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.labels.byTask(taskId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.lists() });
     },
   });
 }

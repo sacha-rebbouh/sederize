@@ -20,15 +20,21 @@ export function ThreeDayView({ startDate, tasks }: ThreeDayViewProps) {
     [startDate]
   );
 
-  // Group tasks by date
+  // Group tasks by date and sort (completed at bottom)
   const tasksByDate = useMemo(() => {
     const grouped: Record<string, TaskWithRelations[]> = {};
 
     days.forEach((day) => {
       const dateKey = format(day, 'yyyy-MM-dd');
-      grouped[dateKey] = tasks.filter(
+      const dayTasks = tasks.filter(
         (task) => task.do_date && isSameDay(new Date(task.do_date), day)
       );
+      // Sort: incomplete tasks first, then completed tasks
+      grouped[dateKey] = dayTasks.sort((a, b) => {
+        const aCompleted = a.status === 'done' ? 1 : 0;
+        const bCompleted = b.status === 'done' ? 1 : 0;
+        return aCompleted - bCompleted;
+      });
     });
 
     return grouped;
@@ -68,7 +74,7 @@ export function ThreeDayView({ startDate, tasks }: ThreeDayViewProps) {
               {/* Tasks */}
               <ScrollArea className="h-[calc(100vh-350px)]">
                 <div className="p-2 space-y-2">
-                  <AnimatePresence mode="popLayout">
+                  <AnimatePresence mode="sync">
                     {dayTasks.length > 0 ? (
                       dayTasks.map((task, taskIndex) => (
                         <motion.div

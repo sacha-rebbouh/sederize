@@ -63,10 +63,18 @@ export function SubtaskList({ parentTaskId, className }: SubtaskListProps) {
   const completedCount = subtasks?.filter((s) => s.status === 'done').length ?? 0;
   const totalCount = subtasks?.length ?? 0;
 
+  // Show skeleton with same structure to prevent layout shift
   if (isLoading) {
     return (
-      <div className="text-sm text-muted-foreground animate-pulse">
-        Loading subtasks...
+      <div className={cn('space-y-2', className)}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">Subtasks</span>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground italic py-2 animate-pulse">
+          Loading...
+        </p>
       </div>
     );
   }

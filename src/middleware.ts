@@ -1,6 +1,17 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+// Cookie name for preferred view (must match settings page)
+const PREFERRED_VIEW_COOKIE = 'sederize-preferred-view';
+
+// Route mapping for preferred views
+const VIEW_ROUTES: Record<string, string> = {
+  'daily-brief': '/',
+  'inbox': '/inbox',
+  'calendar': '/calendar',
+  'kanban': '/kanban',
+};
+
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -54,6 +65,25 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = '/';
     return NextResponse.redirect(url);
+  }
+
+  // Redirect to preferred view on root path ONLY on initial app load
+  // (not when user explicitly navigates to Daily Brief within the app)
+  if (user && request.nextUrl.pathname === '/') {
+    const referer = request.headers.get('referer');
+    const isInternalNavigation = referer && new URL(referer).origin === request.nextUrl.origin;
+
+    // Only redirect if this is an external entry (no referer or different origin)
+    if (!isInternalNavigation) {
+      const preferredView = request.cookies.get(PREFERRED_VIEW_COOKIE)?.value;
+      const targetRoute = preferredView ? VIEW_ROUTES[preferredView] : null;
+
+      if (targetRoute && targetRoute !== '/') {
+        const url = request.nextUrl.clone();
+        url.pathname = targetRoute;
+        return NextResponse.redirect(url);
+      }
+    }
   }
 
   return supabaseResponse;

@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, forwardRef } from 'react';
+import { useState, forwardRef, memo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import {
   CheckCircle2,
   Circle,
@@ -43,16 +45,18 @@ interface TaskCardProps {
   showSubject?: boolean;
   subjectTitle?: string | null;
   compact?: boolean;
+  showTimestamp?: boolean;
   onEdit?: () => void;
 }
 
-export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCard({
+const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCardInner({
   task,
   theme,
   labels = [],
   showSubject = false,
   subjectTitle,
   compact = false,
+  showTimestamp = false,
 }, ref) {
   const [editOpen, setEditOpen] = useState(false);
   const [waitingForOpen, setWaitingForOpen] = useState(false);
@@ -64,7 +68,7 @@ export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskC
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
 
-  const handleComplete = () => {
+  const handleComplete = useCallback(() => {
     if (task.status === 'done') {
       updateTask.mutate({ id: task.id, status: 'todo' });
     } else {
@@ -83,40 +87,25 @@ export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskC
         });
       }, 300);
     }
-  };
+  }, [task.id, task.status, completeTask, updateTask]);
 
-  const handlePriorityChange = (e: React.MouseEvent) => {
+  const handlePriorityChange = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     const currentPriority = (task.priority ?? 0) as PriorityLevel;
     const newPriority = cyclePriority(currentPriority);
-    console.log('Changing priority from', currentPriority, 'to', newPriority);
-    updateTask.mutate(
-      { id: task.id, priority: newPriority },
-      {
-        onSuccess: () => {
-          console.log('Priority updated successfully');
-        },
-        onError: (error) => {
-          console.error('Priority update failed:', error);
-        },
-      }
-    );
-  };
+    updateTask.mutate({ id: task.id, priority: newPriority });
+  }, [task.id, task.priority, updateTask]);
 
-  const handleDelete = () => {
-    setDeleteConfirmOpen(true);
-  };
-
-  const confirmDelete = () => {
+  const confirmDelete = useCallback(() => {
     deleteTask.mutate(task.id);
     setDeleteConfirmOpen(false);
-  };
+  }, [task.id, deleteTask]);
 
   const overdue = isOverdue(task.do_date);
   const isWaitingFor = task.status === 'waiting_for';
   const isDone = task.status === 'done';
 
-  const handleCardClick = (e: React.MouseEvent) => {
+  const handleCardClick = useCallback((e: React.MouseEvent) => {
     // Don't open focus mode if clicking on interactive elements
     const target = e.target as HTMLElement;
     if (
@@ -127,7 +116,11 @@ export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskC
       return;
     }
     setFocusOpen(true);
-  };
+  }, []);
+
+  const handleMoveToTodo = useCallback(() => {
+    updateTask.mutate({ id: task.id, status: 'todo' });
+  }, [task.id, updateTask]);
 
   return (
     <div ref={ref}>
@@ -180,15 +173,21 @@ export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskC
                 exit={{ scale: 0 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 30 }}
               >
-                <CheckCircle2 className="h-6 w-6 text-primary" />
+                <CheckCircle2 className="h-5 w-5 text-primary" />
               </motion.div>
             ) : isWaitingFor ? (
               <motion.div
                 key="waiting"
-                animate={{ rotate: [0, 10, -10, 0] }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                className="relative group/waiting"
               >
-                <Hourglass className="h-6 w-6 text-amber-500" />
+                <Hourglass className="h-5 w-5 text-amber-500" />
+                {/* Hover overlay to show can complete */}
+                <motion.div
+                  className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/waiting:opacity-100 transition-opacity"
+                  title="Click to complete"
+                >
+                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                </motion.div>
               </motion.div>
             ) : isCompleting ? (
               <motion.div
@@ -197,7 +196,7 @@ export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskC
                 animate={{ scale: [1, 1.2, 1], rotate: 360 }}
                 transition={{ duration: 0.3 }}
               >
-                <CheckCircle2 className="h-6 w-6 text-primary" />
+                <CheckCircle2 className="h-5 w-5 text-primary" />
               </motion.div>
             ) : (
               <motion.div
@@ -205,7 +204,7 @@ export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskC
                 whileHover={{ scale: 1.1 }}
                 className="relative"
               >
-                <Circle className="h-6 w-6 text-muted-foreground/50 group-hover:text-primary/70 transition-colors" />
+                <Circle className="h-5 w-5 text-muted-foreground/50 group-hover:text-primary/70 transition-colors" />
                 {/* Hover hint */}
                 <motion.div
                   className="absolute inset-0 rounded-full bg-primary/10"
@@ -225,11 +224,17 @@ export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskC
               {/* Subject badge */}
               {showSubject && subjectTitle && (
                 <motion.div
-                  className="flex items-center gap-1.5 mb-1"
+                  className="flex items-center gap-1.5 mb-1.5"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                 >
-                  <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                  <span
+                    className="text-xs font-semibold px-2.5 py-0.5 rounded-full"
+                    style={{
+                      backgroundColor: theme?.color_hex ? `${theme.color_hex}15` : 'hsl(var(--muted))',
+                      color: theme?.color_hex || 'hsl(var(--muted-foreground))',
+                    }}
+                  >
                     {subjectTitle}
                   </span>
                 </motion.div>
@@ -314,74 +319,131 @@ export const TaskCard = forwardRef<HTMLDivElement, TaskCardProps>(function TaskC
             </div>
 
             {/* Actions - Always visible on mobile, hover on desktop */}
-            <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-              {!isDone && !isWaitingFor && (
-                <SnoozePopover taskId={task.id} />
-              )}
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                {!isDone && !isWaitingFor && (
+                  <SnoozePopover taskId={task.id} taskDate={task.do_date} />
+                )}
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => setEditOpen(true)}>
-                    <Edit3 className="h-4 w-4 mr-2" />
-                    Edit task
-                  </DropdownMenuItem>
-                  {!isWaitingFor && task.status !== 'done' && (
-                    <DropdownMenuItem onClick={() => setWaitingForOpen(true)}>
-                      <Hourglass className="h-4 w-4 mr-2" />
-                      Set waiting for
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem onSelect={(e) => {
+                      e.preventDefault();
+                      setTimeout(() => setEditOpen(true), 0);
+                    }}>
+                      <Edit3 className="h-4 w-4 mr-2" />
+                      Edit task
                     </DropdownMenuItem>
-                  )}
-                  {isWaitingFor && (
+                    {!isWaitingFor && task.status !== 'done' && (
+                      <DropdownMenuItem onSelect={(e) => {
+                        e.preventDefault();
+                        setTimeout(() => setWaitingForOpen(true), 0);
+                      }}>
+                        <Hourglass className="h-4 w-4 mr-2" />
+                        Set waiting for
+                      </DropdownMenuItem>
+                    )}
+                    {isWaitingFor && (
+                      <DropdownMenuItem onSelect={handleMoveToTodo}>
+                        <ArrowRight className="h-4 w-4 mr-2" />
+                        Move to todo
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      onClick={() =>
-                        updateTask.mutate({ id: task.id, status: 'todo' })
-                      }
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        setTimeout(() => setDeleteConfirmOpen(true), 0);
+                      }}
+                      className="text-destructive focus:text-destructive"
                     >
-                      <ArrowRight className="h-4 w-4 mr-2" />
-                      Move to todo
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
                     </DropdownMenuItem>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleDelete}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              {/* Timestamp - shown below menu */}
+              {showTimestamp && task.updated_at && (
+                <span className="text-[10px] text-muted-foreground/70 px-2">
+                  {formatDistanceToNow(new Date(task.updated_at), { addSuffix: true, locale: fr })}
+                </span>
+              )}
             </div>
           </div>
         </div>
       </motion.div>
 
-      <EditTaskDialog task={task} open={editOpen} onOpenChange={setEditOpen} />
-      <WaitingForDialog
-        task={task}
-        open={waitingForOpen}
-        onOpenChange={setWaitingForOpen}
-      />
-      <TaskFocusDialog
-        task={task}
-        open={focusOpen}
-        onOpenChange={setFocusOpen}
-      />
-      <ConfirmDialog
-        open={deleteConfirmOpen}
-        onOpenChange={setDeleteConfirmOpen}
-        title="Supprimer cette tâche ?"
-        description="Cette action est irréversible. La tâche sera définitivement supprimée."
-        confirmLabel="Supprimer"
-        cancelLabel="Annuler"
-        variant="destructive"
-        onConfirm={confirmDelete}
-      />
+      {/* Conditionally render dialogs only when needed */}
+      {editOpen && (
+        <EditTaskDialog task={task} open={editOpen} onOpenChange={setEditOpen} />
+      )}
+      {waitingForOpen && (
+        <WaitingForDialog
+          task={task}
+          open={waitingForOpen}
+          onOpenChange={setWaitingForOpen}
+        />
+      )}
+      {focusOpen && (
+        <TaskFocusDialog
+          task={task}
+          open={focusOpen}
+          onOpenChange={setFocusOpen}
+        />
+      )}
+      {deleteConfirmOpen && (
+        <ConfirmDialog
+          open={deleteConfirmOpen}
+          onOpenChange={setDeleteConfirmOpen}
+          title="Supprimer cette tâche ?"
+          description="Cette action est irréversible. La tâche sera définitivement supprimée."
+          confirmLabel="Supprimer"
+          cancelLabel="Annuler"
+          variant="destructive"
+          onConfirm={confirmDelete}
+        />
+      )}
     </div>
   );
 });
+
+// Custom comparison function for memo - only re-render when task data actually changes
+function arePropsEqual(prevProps: TaskCardProps, nextProps: TaskCardProps): boolean {
+  // Compare task fields that affect rendering
+  if (prevProps.task.id !== nextProps.task.id) return false;
+  if (prevProps.task.title !== nextProps.task.title) return false;
+  if (prevProps.task.description !== nextProps.task.description) return false;
+  if (prevProps.task.status !== nextProps.task.status) return false;
+  if (prevProps.task.priority !== nextProps.task.priority) return false;
+  if (prevProps.task.do_date !== nextProps.task.do_date) return false;
+  if (prevProps.task.do_time !== nextProps.task.do_time) return false;
+  if (prevProps.task.waiting_for_note !== nextProps.task.waiting_for_note) return false;
+  if (prevProps.task.snooze_count !== nextProps.task.snooze_count) return false;
+
+  // Compare other props
+  if (prevProps.theme?.id !== nextProps.theme?.id) return false;
+  if (prevProps.theme?.color_hex !== nextProps.theme?.color_hex) return false;
+  if (prevProps.showSubject !== nextProps.showSubject) return false;
+  if (prevProps.subjectTitle !== nextProps.subjectTitle) return false;
+  if (prevProps.compact !== nextProps.compact) return false;
+  if (prevProps.showTimestamp !== nextProps.showTimestamp) return false;
+
+  // Compare labels (shallow comparison of IDs)
+  const prevLabels = prevProps.labels || [];
+  const nextLabels = nextProps.labels || [];
+  if (prevLabels.length !== nextLabels.length) return false;
+  for (let i = 0; i < prevLabels.length; i++) {
+    if (prevLabels[i].id !== nextLabels[i].id) return false;
+  }
+
+  return true;
+}
+
+// Export memoized component
+export const TaskCard = memo(TaskCardInner, arePropsEqual);

@@ -2,6 +2,8 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
+import { queryKeys } from '@/lib/query-keys';
+import { STALE_TIMES } from '@/providers/query-provider';
 import {
   Subject,
   SubjectWithTheme,
@@ -9,9 +11,13 @@ import {
   UpdateSubjectInput,
 } from '@/types/database';
 
+interface UseSubjectsOptions {
+  enabled?: boolean;
+}
+
 export function useSubjects(themeId?: string) {
   return useQuery({
-    queryKey: ['subjects', themeId],
+    queryKey: queryKeys.subjects.byTheme(themeId),
     queryFn: async () => {
       const supabase = createClient();
       let query = supabase
@@ -28,12 +34,13 @@ export function useSubjects(themeId?: string) {
       if (error) throw error;
       return data as SubjectWithTheme[];
     },
+    staleTime: STALE_TIMES.subjects,
   });
 }
 
-export function useActiveSubjects() {
+export function useActiveSubjects(options?: UseSubjectsOptions) {
   return useQuery({
-    queryKey: ['subjects', 'active'],
+    queryKey: queryKeys.subjects.active(),
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
@@ -45,12 +52,14 @@ export function useActiveSubjects() {
       if (error) throw error;
       return data as SubjectWithTheme[];
     },
+    staleTime: STALE_TIMES.subjects,
+    enabled: options?.enabled ?? true,
   });
 }
 
 export function useSubject(id: string) {
   return useQuery({
-    queryKey: ['subjects', id],
+    queryKey: queryKeys.subjects.detail(id),
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
@@ -63,12 +72,13 @@ export function useSubject(id: string) {
       return data as SubjectWithTheme;
     },
     enabled: !!id,
+    staleTime: STALE_TIMES.subjects,
   });
 }
 
 export function useZombieSubjects() {
   return useQuery({
-    queryKey: ['subjects', 'zombies'],
+    queryKey: queryKeys.subjects.zombies(),
     queryFn: async () => {
       const supabase = createClient();
       const tenDaysAgo = new Date();
@@ -83,6 +93,7 @@ export function useZombieSubjects() {
       if (error) throw error;
       return data as SubjectWithTheme[];
     },
+    staleTime: STALE_TIMES.subjects,
   });
 }
 
@@ -115,7 +126,7 @@ export function useCreateSubject() {
       return data as Subject;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['subjects'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.subjects.all });
     },
   });
 }
@@ -136,9 +147,8 @@ export function useUpdateSubject() {
       if (error) throw error;
       return data as Subject;
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['subjects'] });
-      queryClient.invalidateQueries({ queryKey: ['subjects', data.id] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.subjects.all });
     },
   });
 }
@@ -152,9 +162,35 @@ export function useDeleteSubject() {
       const { error } = await supabase.from('subjects').delete().eq('id', id);
 
       if (error) throw error;
+      return id;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['subjects'] });
+    onMutate: async (id: string) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: queryKeys.subjects.all });
+
+      // Snapshot current state
+      const previousSubjects = queryClient.getQueryData<SubjectWithTheme[]>(queryKeys.subjects.active());
+
+      // Optimistically remove from cache
+      if (previousSubjects) {
+        queryClient.setQueryData<SubjectWithTheme[]>(
+          queryKeys.subjects.active(),
+          previousSubjects.filter((s) => s.id !== id)
+        );
+      }
+
+      return { previousSubjects };
+    },
+    onError: (_err, _id, context) => {
+      // Rollback on error
+      if (context?.previousSubjects) {
+        queryClient.setQueryData(queryKeys.subjects.active(), context.previousSubjects);
+      }
+    },
+    onSettled: () => {
+      // Refetch in background to ensure consistency
+      queryClient.invalidateQueries({ queryKey: queryKeys.subjects.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.lists() });
     },
   });
 }

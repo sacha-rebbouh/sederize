@@ -164,10 +164,22 @@ export function AttachmentList({ taskId, className, readOnly = false }: Attachme
     }
   };
 
+  // Show skeleton with same dimensions as final content to prevent layout shift
   if (isLoading) {
     return (
-      <div className="text-sm text-muted-foreground animate-pulse">
-        Loading attachments...
+      <div className={cn('space-y-3', className)}>
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">Attachments</span>
+        </div>
+        {!readOnly && (
+          <div className="border-2 border-dashed rounded-lg p-4 text-center border-muted-foreground/25">
+            <div className="flex flex-col items-center gap-1 text-muted-foreground animate-pulse">
+              <Upload className="h-5 w-5 opacity-50" />
+              <span className="text-sm opacity-50">Loading...</span>
+              <span className="text-xs opacity-0">Max 10MB per file</span>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

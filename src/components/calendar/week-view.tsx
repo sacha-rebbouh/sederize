@@ -1,10 +1,11 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, isToday, isSameDay, startOfWeek, addDays } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { TaskFocusDialog } from '@/components/tasks/task-focus-dialog';
 import { TaskWithRelations } from '@/types/database';
 import { cn } from '@/lib/utils';
 
@@ -15,6 +16,13 @@ interface WeekViewProps {
 }
 
 export function WeekView({ date, tasks, onDateClick }: WeekViewProps) {
+  const [focusedTask, setFocusedTask] = useState<TaskWithRelations | null>(null);
+
+  const handleTaskClick = useCallback((task: TaskWithRelations, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFocusedTask(task);
+  }, []);
+
   const weekStart = startOfWeek(date);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
@@ -67,14 +75,18 @@ export function WeekView({ date, tasks, onDateClick }: WeekViewProps) {
               {/* Tasks */}
               <ScrollArea className="h-[calc(100vh-350px)]">
                 <div className="p-1 space-y-1">
-                  <AnimatePresence mode="popLayout">
-                    {dayTasks.slice(0, 6).map((task, taskIndex) => (
+                  <AnimatePresence mode="sync">
+                    {dayTasks.map((task, taskIndex) => (
                       <motion.div
                         key={task.id}
                         initial={{ opacity: 0, x: -5 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: taskIndex * 0.03 }}
-                        className="p-1.5 rounded text-xs truncate cursor-pointer hover:opacity-80"
+                        transition={{ delay: Math.min(taskIndex * 0.03, 0.3) }}
+                        onClick={(e) => handleTaskClick(task, e)}
+                        className={cn(
+                          "p-1.5 rounded text-xs truncate cursor-pointer hover:opacity-80 hover:shadow-sm transition-all",
+                          task.status === 'done' && "opacity-60"
+                        )}
                         style={{
                           backgroundColor: (task.theme?.color_hex || '#6366f1') + '20',
                           borderLeft: `2px solid ${task.theme?.color_hex || '#6366f1'}`,
@@ -86,18 +98,12 @@ export function WeekView({ date, tasks, onDateClick }: WeekViewProps) {
                             {task.do_time.slice(0, 5)}
                           </span>
                         )}
-                        <span className="font-medium">{task.title}</span>
+                        <span className={cn(
+                          "font-medium",
+                          task.status === 'done' && "line-through"
+                        )}>{task.title}</span>
                       </motion.div>
                     ))}
-                    {dayTasks.length > 6 && (
-                      <motion.p
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="text-xs text-muted-foreground text-center py-1"
-                      >
-                        +{dayTasks.length - 6} more
-                      </motion.p>
-                    )}
                     {dayTasks.length === 0 && (
                       <motion.p
                         initial={{ opacity: 0 }}
@@ -114,6 +120,15 @@ export function WeekView({ date, tasks, onDateClick }: WeekViewProps) {
           );
         })}
       </div>
+
+      {/* Task Focus Dialog */}
+      {focusedTask && (
+        <TaskFocusDialog
+          task={focusedTask}
+          open={!!focusedTask}
+          onOpenChange={(open) => !open && setFocusedTask(null)}
+        />
+      )}
     </Card>
   );
 }

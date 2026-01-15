@@ -1,11 +1,12 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, isToday, isSameDay } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TaskCard } from '@/components/tasks/task-card';
+import { TaskFocusDialog } from '@/components/tasks/task-focus-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { TaskWithRelations } from '@/types/database';
 import { cn } from '@/lib/utils';
@@ -17,6 +18,12 @@ interface DayViewProps {
 }
 
 export function DayView({ date, tasks }: DayViewProps) {
+  const [focusedTask, setFocusedTask] = useState<TaskWithRelations | null>(null);
+
+  const handleTaskClick = useCallback((task: TaskWithRelations) => {
+    setFocusedTask(task);
+  }, []);
+
   // Group tasks by hour
   const tasksByHour = useMemo(() => {
     const grouped: Record<number, TaskWithRelations[]> = {};
@@ -76,7 +83,7 @@ export function DayView({ date, tasks }: DayViewProps) {
           <div className="border-b p-4">
             <p className="text-xs font-medium text-muted-foreground mb-2">ALL DAY</p>
             <div className="space-y-2">
-              <AnimatePresence mode="popLayout">
+              <AnimatePresence mode="sync">
                 {allDayTasks.map((task, index) => (
                   <motion.div
                     key={task.id}
@@ -118,13 +125,20 @@ export function DayView({ date, tasks }: DayViewProps) {
                           key={task.id}
                           initial={{ opacity: 0, x: -10 }}
                           animate={{ opacity: 1, x: 0 }}
-                          className="p-2 rounded-md text-sm"
+                          onClick={() => handleTaskClick(task)}
+                          className={cn(
+                            "p-2 rounded-md text-sm cursor-pointer transition-all hover:shadow-md hover:scale-[1.02]",
+                            task.status === 'done' && "opacity-60"
+                          )}
                           style={{
                             backgroundColor: (task.theme?.color_hex || '#6366f1') + '20',
                             borderLeft: `3px solid ${task.theme?.color_hex || '#6366f1'}`,
                           }}
                         >
-                          <p className="font-medium truncate">{task.title}</p>
+                          <p className={cn(
+                            "font-medium truncate",
+                            task.status === 'done' && "line-through text-muted-foreground"
+                          )}>{task.title}</p>
                           {task.subject && (
                             <p className="text-xs text-muted-foreground">{task.subject.title}</p>
                           )}
@@ -148,6 +162,15 @@ export function DayView({ date, tasks }: DayViewProps) {
           </div>
         )}
       </ScrollArea>
+
+      {/* Task Focus Dialog */}
+      {focusedTask && (
+        <TaskFocusDialog
+          task={focusedTask}
+          open={!!focusedTask}
+          onOpenChange={(open) => !open && setFocusedTask(null)}
+        />
+      )}
     </Card>
   );
 }

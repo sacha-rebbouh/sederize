@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -52,6 +52,13 @@ export function CreateThemeDialog({
 
   const createTheme = useCreateTheme();
   const { data: categories } = useCategories();
+
+  // Sync categoryId when dialog opens with a new initialCategoryId
+  useEffect(() => {
+    if (open) {
+      setCategoryId(initialCategoryId ?? null);
+    }
+  }, [open, initialCategoryId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

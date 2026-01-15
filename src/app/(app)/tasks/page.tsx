@@ -34,9 +34,10 @@ import { SkeletonList, SkeletonHeader } from '@/components/ui/skeleton-card';
 import { useAllTasksUnlimited } from '@/hooks/use-tasks';
 import { useThemes } from '@/hooks/use-themes';
 import { useActiveSubjects } from '@/hooks/use-subjects';
+import { useCategories } from '@/hooks/use-categories';
 import { TaskWithRelations, TaskStatus } from '@/types/database';
 
-type ViewMode = 'all' | 'by-date' | 'by-subject' | 'by-status';
+type ViewMode = 'all' | 'by-date' | 'by-category' | 'by-theme' | 'by-subject' | 'by-status';
 type DateFilter = 'all' | 'overdue' | 'today' | 'tomorrow' | 'week' | 'later' | 'no-date';
 type StatusFilter = 'all' | 'todo' | 'waiting_for' | 'done';
 
@@ -75,21 +76,64 @@ export default function AllTasksPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('by-date');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [themeFilter, setThemeFilter] = useState<string>('all');
   const [subjectFilter, setSubjectFilter] = useState<string>('all');
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   const { data: allTasks = [], isLoading } = useAllTasksUnlimited();
+  const { data: categories } = useCategories();
   const { data: themes } = useThemes();
   const { data: subjects } = useActiveSubjects();
 
-  const hasActiveFilters = search || statusFilter !== 'all' || dateFilter !== 'all' || themeFilter !== 'all' || subjectFilter !== 'all';
+  // Cascade filter: themes filtered by category
+  const filteredThemes = useMemo(() => {
+    if (!themes) return [];
+    if (categoryFilter === 'all') return themes;
+    return themes.filter((t) => t.category_id === categoryFilter);
+  }, [themes, categoryFilter]);
+
+  // Cascade filter: subjects filtered by theme (and category)
+  const filteredSubjects = useMemo(() => {
+    if (!subjects) return [];
+    if (themeFilter !== 'all') {
+      return subjects.filter((s) => s.theme_id === themeFilter);
+    }
+    if (categoryFilter !== 'all') {
+      const themeIds = filteredThemes.map((t) => t.id);
+      return subjects.filter((s) => themeIds.includes(s.theme_id));
+    }
+    return subjects;
+  }, [subjects, themeFilter, categoryFilter, filteredThemes]);
+
+  // Reset dependent filters when parent changes
+  const handleCategoryChange = (value: string) => {
+    setCategoryFilter(value);
+    setThemeFilter('all');
+    setSubjectFilter('all');
+  };
+
+  const handleThemeChange = (value: string) => {
+    setThemeFilter(value);
+    setSubjectFilter('all');
+  };
+
+  const hasActiveFilters = search || statusFilter !== 'all' || dateFilter !== 'all' || categoryFilter !== 'all' || themeFilter !== 'all' || subjectFilter !== 'all';
 
   // Filter tasks
   const filteredTasks = useMemo(() => {
     return allTasks.filter((task) => {
-      if (search && !task.title.toLowerCase().includes(search.toLowerCase())) {
-        return false;
+      // Search in title, description, subject, theme, and labels
+      if (search) {
+        const query = search.toLowerCase();
+        const matchesTitle = task.title.toLowerCase().includes(query);
+        const matchesDesc = task.description?.toLowerCase().includes(query);
+        const matchesSubject = task.subject?.title.toLowerCase().includes(query);
+        const matchesTheme = task.theme?.title.toLowerCase().includes(query);
+        const matchesLabels = task.labels?.some((label) => label.name.toLowerCase().includes(query));
+        if (!matchesTitle && !matchesDesc && !matchesSubject && !matchesTheme && !matchesLabels) {
+          return false;
+        }
       }
       if (statusFilter !== 'all' && task.status !== statusFilter) {
         return false;
@@ -103,6 +147,11 @@ export default function AllTasksPage() {
         if (dateFilter === 'later' && label !== 'Later') return false;
         if (dateFilter === 'no-date' && task.do_date) return false;
       }
+      // Category filter (via theme)
+      if (categoryFilter !== 'all') {
+        const taskTheme = themes?.find((t) => t.id === task.theme?.id);
+        if (taskTheme?.category_id !== categoryFilter) return false;
+      }
       if (themeFilter !== 'all' && task.theme?.id !== themeFilter) {
         return false;
       }
@@ -111,12 +160,50 @@ export default function AllTasksPage() {
       }
       return true;
     });
-  }, [allTasks, search, statusFilter, dateFilter, themeFilter, subjectFilter]);
+  }, [allTasks, search, statusFilter, dateFilter, categoryFilter, themeFilter, subjectFilter, themes]);
+
+  // Sort tasks: done at bottom, then by priority
+  const sortTasksWithDoneAtBottom = (tasks: TaskWithRelations[]) => {
+    return [...tasks].sort((a, b) => {
+      // Done tasks go to bottom
+      if (a.status === 'done' && b.status !== 'done') return 1;
+      if (a.status !== 'done' && b.status === 'done') return -1;
+      // Then by priority (higher first)
+      return (b.priority ?? 0) - (a.priority ?? 0);
+    });
+  };
+
+  // Build hierarchy label for task (Category > Theme > Subject)
+  const getHierarchyLabel = (task: TaskWithRelations): string | null => {
+    const parts: string[] = [];
+
+    // Only show hierarchy when all filters are "all"
+    const showFullHierarchy = categoryFilter === 'all' && themeFilter === 'all' && subjectFilter === 'all';
+
+    if (!showFullHierarchy) {
+      // When filtering, just show the subject name if present
+      return task.subject?.title || null;
+    }
+
+    // Build full hierarchy: Category > Theme > Subject
+    if (task.category?.title) {
+      parts.push(task.category.title);
+    }
+    if (task.theme?.title) {
+      parts.push(task.theme.title);
+    }
+    if (task.subject?.title) {
+      parts.push(task.subject.title);
+    }
+
+    if (parts.length === 0) return 'Inbox';
+    return parts.join(' › ');
+  };
 
   // Group tasks based on view mode
   const groupedTasks = useMemo((): TaskGroup[] => {
     if (viewMode === 'all') {
-      return [{ title: 'All Tasks', tasks: filteredTasks }];
+      return [{ title: 'All Tasks', tasks: sortTasksWithDoneAtBottom(filteredTasks) }];
     }
 
     if (viewMode === 'by-date') {
@@ -136,24 +223,83 @@ export default function AllTasksPage() {
 
       return Object.entries(groups)
         .filter(([, tasks]) => tasks.length > 0)
-        .map(([title, tasks]) => ({ title, tasks }));
+        .map(([title, tasks]) => ({ title, tasks: sortTasksWithDoneAtBottom(tasks) }));
+    }
+
+    if (viewMode === 'by-category') {
+      const byCategory: Record<string, { tasks: TaskWithRelations[]; color?: string }> = {
+        'No Category': { tasks: [], color: undefined }
+      };
+
+      filteredTasks.forEach((task) => {
+        const key = task.category?.title || 'No Category';
+        if (!byCategory[key]) {
+          byCategory[key] = {
+            tasks: [],
+            color: task.category?.color_hex,
+          };
+        }
+        byCategory[key].tasks.push(task);
+      });
+
+      return Object.entries(byCategory)
+        .filter(([, data]) => data.tasks.length > 0)
+        .map(([title, data]) => ({
+          title,
+          tasks: sortTasksWithDoneAtBottom(data.tasks),
+          color: data.color,
+        }));
+    }
+
+    if (viewMode === 'by-theme') {
+      const byTheme: Record<string, { tasks: TaskWithRelations[]; color?: string; categoryName?: string }> = {
+        'No Theme': { tasks: [], color: undefined, categoryName: undefined }
+      };
+
+      filteredTasks.forEach((task) => {
+        const key = task.theme?.title || 'No Theme';
+        if (!byTheme[key]) {
+          byTheme[key] = {
+            tasks: [],
+            color: task.theme?.color_hex,
+            categoryName: task.category?.title,
+          };
+        }
+        byTheme[key].tasks.push(task);
+      });
+
+      return Object.entries(byTheme)
+        .filter(([, data]) => data.tasks.length > 0)
+        .map(([title, data]) => ({
+          title: data.categoryName ? `${title} (${data.categoryName})` : title,
+          tasks: sortTasksWithDoneAtBottom(data.tasks),
+          color: data.color,
+        }));
     }
 
     if (viewMode === 'by-subject') {
-      const bySubject: Record<string, TaskWithRelations[]> = { 'Inbox': [] };
+      const bySubject: Record<string, { tasks: TaskWithRelations[]; color?: string; themeName?: string }> = {
+        'Inbox': { tasks: [], color: undefined, themeName: undefined }
+      };
 
       filteredTasks.forEach((task) => {
         const key = task.subject?.title || 'Inbox';
-        if (!bySubject[key]) bySubject[key] = [];
-        bySubject[key].push(task);
+        if (!bySubject[key]) {
+          bySubject[key] = {
+            tasks: [],
+            color: task.theme?.color_hex,
+            themeName: task.theme?.title,
+          };
+        }
+        bySubject[key].tasks.push(task);
       });
 
       return Object.entries(bySubject)
-        .filter(([, tasks]) => tasks.length > 0)
-        .map(([title, tasks]) => ({
-          title,
-          tasks,
-          color: tasks[0]?.theme?.color_hex,
+        .filter(([, data]) => data.tasks.length > 0)
+        .map(([title, data]) => ({
+          title: data.themeName ? `${title} (${data.themeName})` : title,
+          tasks: sortTasksWithDoneAtBottom(data.tasks),
+          color: data.color,
         }));
     }
 
@@ -200,6 +346,7 @@ export default function AllTasksPage() {
     setSearch('');
     setStatusFilter('all');
     setDateFilter('all');
+    setCategoryFilter('all');
     setThemeFilter('all');
     setSubjectFilter('all');
   };
@@ -292,6 +439,8 @@ export default function AllTasksPage() {
             <SelectContent>
               <SelectItem value="all">All</SelectItem>
               <SelectItem value="by-date">By Date</SelectItem>
+              <SelectItem value="by-category">By Category</SelectItem>
+              <SelectItem value="by-theme">By Theme</SelectItem>
               <SelectItem value="by-subject">By Subject</SelectItem>
               <SelectItem value="by-status">By Status</SelectItem>
             </SelectContent>
@@ -326,14 +475,35 @@ export default function AllTasksPage() {
             </SelectContent>
           </Select>
 
-          {/* Theme Filter */}
-          <Select value={themeFilter} onValueChange={setThemeFilter}>
+          {/* Category Filter */}
+          <Select value={categoryFilter} onValueChange={handleCategoryChange}>
+            <SelectTrigger className={`w-[130px] h-9 ${categoryFilter !== 'all' ? 'border-primary' : ''}`}>
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories?.map((cat) => (
+                <SelectItem key={cat.id} value={cat.id}>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: cat.color_hex }}
+                    />
+                    {cat.title}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Theme Filter (cascade from category) */}
+          <Select value={themeFilter} onValueChange={handleThemeChange}>
             <SelectTrigger className={`w-[130px] h-9 ${themeFilter !== 'all' ? 'border-primary' : ''}`}>
               <SelectValue placeholder="Theme" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Themes</SelectItem>
-              {themes?.map((theme) => (
+              {filteredThemes.map((theme) => (
                 <SelectItem key={theme.id} value={theme.id}>
                   <div className="flex items-center gap-2">
                     <div
@@ -347,14 +517,14 @@ export default function AllTasksPage() {
             </SelectContent>
           </Select>
 
-          {/* Subject Filter */}
+          {/* Subject Filter (cascade from theme) */}
           <Select value={subjectFilter} onValueChange={setSubjectFilter}>
             <SelectTrigger className={`w-[150px] h-9 ${subjectFilter !== 'all' ? 'border-primary' : ''}`}>
               <SelectValue placeholder="Subject" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Subjects</SelectItem>
-              {subjects?.map((subject) => (
+              {filteredSubjects.map((subject) => (
                 <SelectItem key={subject.id} value={subject.id}>
                   {subject.title}
                 </SelectItem>
@@ -438,7 +608,7 @@ export default function AllTasksPage() {
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <div className="border-t p-3 space-y-2 bg-muted/30">
-                      <AnimatePresence mode="popLayout">
+                      <AnimatePresence mode="sync">
                         {group.tasks.map((task) => (
                           <TaskCard
                             key={task.id}
@@ -446,7 +616,7 @@ export default function AllTasksPage() {
                             theme={task.theme}
                             labels={task.labels}
                             showSubject
-                            subjectTitle={task.subject?.title}
+                            subjectTitle={getHierarchyLabel(task)}
                           />
                         ))}
                       </AnimatePresence>

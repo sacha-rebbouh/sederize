@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, CalendarDays, Send, Sparkles, Clock } from 'lucide-react';
+import { Plus, X, CalendarDays, Send, Sparkles, Clock, Flag } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ import { useCreateTask } from '@/hooks/use-tasks';
 import { SubjectPicker } from './subject-picker';
 import { parseTaskInput } from '@/lib/date-parser';
 import { cn } from '@/lib/utils';
+import { PriorityLevel, PRIORITY_LABELS } from '@/types/database';
 
 interface QuickAddProps {
   open?: boolean;
@@ -35,6 +36,7 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
   const [doDate, setDoDate] = useState<Date | undefined>();
   const [doTime, setDoTime] = useState<string>('');
   const [subjectId, setSubjectId] = useState<string | null>(null);
+  const [priority, setPriority] = useState<PriorityLevel>(1); // Default: Normal
   const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -61,27 +63,44 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
     if (!input.trim() || isSubmitting) return;
 
     setIsSubmitting(true);
+    // Parse the input exactly like inbox does
     const parsed = parseTaskInput(input);
-    const finalDate = doDate || parsed.date;
-    const finalTime = doTime || parsed.time;
 
     try {
       await createTask.mutateAsync({
         title: parsed.title || input,
-        do_date: finalDate ? format(finalDate, 'yyyy-MM-dd') : null,
-        do_time: finalTime || null,
+        // Use manually selected date/time if set, otherwise use parsed values
+        do_date: doDate ? format(doDate, 'yyyy-MM-dd') : (parsed.date ? format(parsed.date, 'yyyy-MM-dd') : null),
+        do_time: doTime || parsed.time || null,
         subject_id: subjectId,
+        // Use parsed priority if detected, otherwise use manual selection (default 1 = Normal)
+        priority: parsed.priority ?? priority,
       });
 
-      toast.success('Task created!', {
-        icon: <Sparkles className="h-4 w-4 text-amber-500" />,
-      });
+      // Build success message with details (like inbox does)
+      const details: string[] = [];
+      if (parsed.priority !== null) {
+        const priorityNames = { 0: 'Low', 1: 'Normal', 2: 'High', 3: 'Urgent' };
+        details.push(priorityNames[parsed.priority]);
+      }
+      if (parsed.date) {
+        details.push(format(parsed.date, 'MMM d'));
+      }
+      if (parsed.time) {
+        details.push(parsed.time);
+      }
+
+      toast.success(
+        details.length > 0 ? `Task created (${details.join(', ')})` : 'Task created!',
+        { icon: <Sparkles className="h-4 w-4 text-amber-500" /> }
+      );
 
       // Reset and close
       setInput('');
       setDoDate(undefined);
       setDoTime('');
       setSubjectId(null);
+      setPriority(1);
       setOpen(false);
     } catch {
       toast.error('Failed to create task');
@@ -90,15 +109,9 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
     }
   };
 
+  // Simple input change - parsing happens on submit (like inbox)
   const handleInputChange = (value: string) => {
     setInput(value);
-    const parsed = parseTaskInput(value);
-    if (parsed.date && !doDate) {
-      setDoDate(parsed.date);
-    }
-    if (parsed.time && !doTime) {
-      setDoTime(parsed.time);
-    }
   };
 
   const clearAll = () => {
@@ -106,9 +119,10 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
     setDoDate(undefined);
     setDoTime('');
     setSubjectId(null);
+    setPriority(1);
   };
 
-  const hasOptions = doDate || doTime || subjectId;
+  const hasOptions = doDate || doTime || subjectId || priority !== 1;
 
   return (
     <>
@@ -273,6 +287,46 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
                 value={subjectId}
                 onChange={setSubjectId}
               />
+
+              {/* Priority Selector */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      'gap-2 transition-all',
+                      priority !== 1 && priority === 3 && 'bg-red-500/10 border-red-500 text-red-600 hover:bg-red-500/20',
+                      priority !== 1 && priority === 2 && 'bg-amber-500/10 border-amber-500 text-amber-600 hover:bg-amber-500/20',
+                      priority !== 1 && priority === 0 && 'bg-blue-500/10 border-blue-500 text-blue-600 hover:bg-blue-500/20'
+                    )}
+                  >
+                    <Flag className="h-4 w-4" />
+                    {PRIORITY_LABELS[priority]}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-40 p-1" align="start">
+                  <div className="space-y-0.5">
+                    {([3, 2, 1, 0] as PriorityLevel[]).map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setPriority(p)}
+                        className={cn(
+                          'w-full text-left px-3 py-2 text-sm rounded-md transition-colors',
+                          priority === p ? 'bg-accent' : 'hover:bg-accent/50',
+                          p === 3 && 'text-red-600',
+                          p === 2 && 'text-amber-600',
+                          p === 0 && 'text-blue-600'
+                        )}
+                      >
+                        {PRIORITY_LABELS[p]}
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
 
               {/* Clear all options */}
               <AnimatePresence>

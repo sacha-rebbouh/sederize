@@ -509,13 +509,55 @@ ALTER TABLE tasks ADD COLUMN IF NOT EXISTS parent_task_id UUID REFERENCES tasks(
 
 ---
 
-## 15. CHANGELOG
+## 15. REACT BEST PRACTICES (OBLIGATOIRE)
 
-| Date | Version | Changes |
-|------|---------|---------|
-| 2025-01-13 | 0.1.0 | Initial v1 implementation |
-| 2025-01-13 | 0.1.1 | Branding update to Sederize |
-| 2025-01-14 | 0.1.2 | UX: Framer Motion, skeletons, ThemeSubjectFilter |
-| 2025-01-14 | 0.1.3 | Documentation: Added bugs/improvements backlog |
-| 2025-01-14 | 0.2.0 | Major features: Labels, Pending Items, Archives, Calendar views |
-| 2025-01-14 | 0.2.1 | Bug fixes: Priority save, date parser fuzzy matching, subject picker fallback, button overlap, unified "En Attente" page |
+**Chaque ligne de code React/Next.js DOIT respecter les React Best Practices de Vercel Engineering.**
+
+### Règles Critiques (À Appliquer Systématiquement)
+
+#### Data Fetching
+- **Éliminer les waterfalls** : Utiliser `Promise.all()` pour requêtes parallèles
+- **Deferred queries** : `enabled: condition` pour éviter les requêtes inutiles
+- **Granular invalidation** : Invalider uniquement les queries affectées, jamais `queryKey: ['all']`
+
+#### Bundle Size
+- **No barrel imports** : Import direct depuis le fichier source
+- **Dynamic imports** : `next/dynamic` pour composants lourds/conditionnels
+- **optimizePackageImports** : Configurer dans `next.config.mjs`
+
+#### Re-renders
+- **React.memo()** : Sur tous les composants avec props stables
+- **useCallback/useMemo** : Pour handlers et calculs coûteux
+- **Conditional rendering** : Ne pas rendre ce qui n'est pas affiché
+
+#### Animations
+- **AnimatePresence mode="sync"** : Jamais `popLayout` (coûteux)
+- **CSS transitions** : Préférer pour effets simples (hover, focus)
+- **layout="position"** : Au lieu de layout complet
+
+### Architecture Query Keys
+Toujours utiliser le factory pattern (`src/lib/query-keys.ts`):
+```typescript
+queryClient.invalidateQueries({ queryKey: queryKeys.tasks.bySubject(subjectId) });
+// PAS: queryClient.invalidateQueries({ queryKey: ['tasks'] });
+```
+
+### Fichiers de Référence
+- `src/lib/query-keys.ts` : Query key factory
+- `src/providers/query-provider.tsx` : Configuration staleTime/gcTime
+- `src/components/tasks/task-card.tsx` : Exemple memo + useCallback
+
+---
+
+## 16. CHANGELOG
+
+**Historique détaillé : voir `changes-log.md`**
+
+| Version | Date | Résumé |
+|---------|------|--------|
+| 0.3.0 | 2025-01-15 | Performance Refactoring (React Best Practices) |
+| 0.2.1 | 2025-01-14 | Bug fixes |
+| 0.2.0 | 2025-01-14 | Labels, Pending Items, Archives, Calendar views |
+| 0.1.2 | 2025-01-14 | UX: Framer Motion, skeletons |
+| 0.1.1 | 2025-01-13 | Branding Sederize |
+| 0.1.0 | 2025-01-13 | Initial v1 |

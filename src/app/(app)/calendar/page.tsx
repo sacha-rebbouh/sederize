@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   format,
@@ -41,12 +42,20 @@ import {
   FilterState,
   filterTasksByThemeAndSubject,
 } from '@/components/filters/theme-subject-filter';
-import { DayView } from '@/components/calendar/day-view';
-import { ThreeDayView } from '@/components/calendar/three-day-view';
-import { WeekView } from '@/components/calendar/week-view';
 import { useTasksByDateRange } from '@/hooks/use-tasks';
 import { TaskWithRelations } from '@/types/database';
 import { cn } from '@/lib/utils';
+
+// Lazy load calendar views - only loaded when needed
+const DayView = dynamic(() => import('@/components/calendar/day-view').then(m => m.DayView), {
+  loading: () => <Card className="p-4"><SkeletonCard /></Card>,
+});
+const ThreeDayView = dynamic(() => import('@/components/calendar/three-day-view').then(m => m.ThreeDayView), {
+  loading: () => <Card className="p-4"><SkeletonCard /></Card>,
+});
+const WeekView = dynamic(() => import('@/components/calendar/week-view').then(m => m.WeekView), {
+  loading: () => <Card className="p-4"><SkeletonCard /></Card>,
+});
 
 type CalendarViewType = 'day' | '3days' | 'week' | 'month';
 
@@ -68,8 +77,23 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [direction, setDirection] = useState(0);
-  const [filter, setFilter] = useState<FilterState>({ themeIds: [], subjectIds: [] });
-  const [viewType, setViewType] = useState<CalendarViewType>('month');
+  const [filter, setFilter] = useState<FilterState>({ categoryIds: [], themeIds: [], subjectIds: [] });
+
+  // Persist calendar view type in localStorage
+  const [viewType, setViewType] = useState<CalendarViewType>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sederize-calendar-view');
+      if (saved && ['day', '3days', 'week', 'month'].includes(saved)) {
+        return saved as CalendarViewType;
+      }
+    }
+    return 'month';
+  });
+
+  // Save view type to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('sederize-calendar-view', viewType);
+  }, [viewType]);
 
   // Calculate date range based on view type
   const dateRange = useMemo(() => {
@@ -101,7 +125,7 @@ export default function CalendarPage() {
     return filterTasksByThemeAndSubject(allTasks || [], filter);
   }, [allTasks, filter]);
 
-  const hasFilters = filter.themeIds.length > 0 || filter.subjectIds.length > 0;
+  const hasFilters = (filter.categoryIds?.length || 0) > 0 || (filter.themeIds?.length || 0) > 0 || (filter.subjectIds?.length || 0) > 0;
 
   // Get days to display
   const days = useMemo(() => {
@@ -205,7 +229,7 @@ export default function CalendarPage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="max-w-4xl mx-auto p-4 md:p-6 space-y-6"
+      className="max-w-7xl mx-auto p-4 md:p-6 space-y-6"
     >
       {/* Header */}
       <motion.div
@@ -370,15 +394,25 @@ export default function CalendarPage() {
                         hasTasks && 'hover:bg-accent/50'
                       )}
                     >
-                      <motion.span
-                        className={cn(
-                          'inline-flex h-7 w-7 items-center justify-center rounded-full text-sm',
-                          isToday(day) && 'bg-primary text-primary-foreground font-bold'
+                      <div className="flex items-center gap-1">
+                        <motion.span
+                          className={cn(
+                            'inline-flex h-7 w-7 items-center justify-center rounded-full text-sm',
+                            isToday(day) && 'bg-primary text-primary-foreground font-bold'
+                          )}
+                          whileHover={isToday(day) ? { scale: 1.1 } : undefined}
+                        >
+                          {format(day, 'd')}
+                        </motion.span>
+                        {/* Purple dot indicator for days with tasks */}
+                        {hasTasks && (
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            className="h-2 w-2 rounded-full bg-purple-500"
+                          />
                         )}
-                        whileHover={isToday(day) ? { scale: 1.1 } : undefined}
-                      >
-                        {format(day, 'd')}
-                      </motion.span>
+                      </div>
 
                       {/* Task Dots */}
                       <AnimatePresence>
@@ -494,7 +528,7 @@ export default function CalendarPage() {
                   description="No tasks scheduled for this day."
                 />
               ) : (
-                <AnimatePresence mode="popLayout">
+                <AnimatePresence mode="sync">
                   {selectedDate &&
                     getTasksForDate(selectedDate).map((task, index) => (
                       <motion.div

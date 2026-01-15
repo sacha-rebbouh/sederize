@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   CalendarDays,
   Inbox,
@@ -20,6 +19,9 @@ import {
   FolderOpen,
   Clock,
   Archive,
+  MoreHorizontal,
+  Trash2,
+  Pencil,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -40,14 +42,15 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { Layers, FolderPlus, Palette } from 'lucide-react';
 import { useCategoriesWithThemes, CategoryWithThemes } from '@/hooks/use-categories';
 import { useActiveSubjects, useZombieSubjects } from '@/hooks/use-subjects';
 import { useInboxCount, useWaitingForCount } from '@/hooks/use-tasks';
 import { useAuth } from '@/providers/auth-provider';
-import { useState } from 'react';
-import { Theme } from '@/types/database';
+import { useState, useCallback, useMemo } from 'react';
+import { Theme, SubjectWithTheme } from '@/types/database';
 
 const mainNavItems = [
   {
@@ -90,9 +93,15 @@ const mainNavItems = [
 interface SidebarProps {
   collapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
-  onCreateTheme?: () => void;
+  onCreateTheme?: (categoryId?: string) => void;
   onCreateSubject?: (themeId: string) => void;
   onCreateCategory?: () => void;
+  onDeleteCategory?: (id: string, title: string) => void;
+  onDeleteTheme?: (id: string, title: string) => void;
+  onDeleteSubject?: (id: string, title: string) => void;
+  onEditCategory?: (id: string, title: string, color: string) => void;
+  onEditTheme?: (id: string, title: string, color: string) => void;
+  onEditSubject?: (id: string, title: string) => void;
 }
 
 export function Sidebar({
@@ -101,6 +110,12 @@ export function Sidebar({
   onCreateTheme,
   onCreateSubject,
   onCreateCategory,
+  onDeleteCategory,
+  onDeleteTheme,
+  onDeleteSubject,
+  onEditCategory,
+  onEditTheme,
+  onEditSubject,
 }: SidebarProps) {
   const pathname = usePathname();
   const { signOut } = useAuth();
@@ -112,69 +127,78 @@ export function Sidebar({
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
   const [openThemes, setOpenThemes] = useState<Record<string, boolean>>({});
 
-  const toggleCategory = (categoryId: string) => {
+  const toggleCategory = useCallback((categoryId: string) => {
     setOpenCategories((prev) => ({
       ...prev,
       [categoryId]: !prev[categoryId],
     }));
-  };
+  }, []);
 
-  const toggleTheme = (themeId: string) => {
+  const toggleTheme = useCallback((themeId: string) => {
     setOpenThemes((prev) => ({
       ...prev,
       [themeId]: !prev[themeId],
     }));
-  };
+  }, []);
 
-  const getSubjectsForTheme = (themeId: string) => {
-    return subjects?.filter((s) => s.theme_id === themeId) || [];
-  };
+  // Memoize subjects grouped by theme
+  const subjectsByTheme = useMemo(() => {
+    const grouped: Record<string, SubjectWithTheme[]> = {};
+    subjects?.forEach((s) => {
+      if (!grouped[s.theme_id]) {
+        grouped[s.theme_id] = [];
+      }
+      grouped[s.theme_id].push(s);
+    });
+    return grouped;
+  }, [subjects]);
 
-  const isZombie = (subjectId: string) => {
-    return zombies?.some((z) => z.id === subjectId) || false;
-  };
+  const getSubjectsForTheme = useCallback((themeId: string) => {
+    return subjectsByTheme[themeId] || [];
+  }, [subjectsByTheme]);
 
-  // Nav button with animations - simplified to avoid double-click issues
+  // Memoize zombie IDs as a Set for O(1) lookup
+  const zombieIds = useMemo(() => {
+    return new Set(zombies?.map((z) => z.id) || []);
+  }, [zombies]);
+
+  const isZombie = useCallback((subjectId: string) => {
+    return zombieIds.has(subjectId);
+  }, [zombieIds]);
+
+  // Nav button - no animations to avoid cascade on data change
   const NavButton = ({
     href,
     icon: Icon,
     label,
     isActive,
     badge,
-    index,
   }: {
     href: string;
     icon: React.ComponentType<{ className?: string }>;
     label: string;
     isActive: boolean;
     badge?: React.ReactNode;
-    index: number;
   }) => {
     const button = (
-      <motion.div
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: index * 0.05 }}
+      <Link
+        href={href}
+        className={cn(
+          'flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm font-medium transition-colors relative overflow-hidden',
+          collapsed ? 'justify-center px-2' : 'justify-start',
+          isActive
+            ? 'bg-secondary text-secondary-foreground'
+            : 'hover:bg-accent hover:text-accent-foreground'
+        )}
       >
-        <Link
-          href={href}
-          className={cn(
-            'flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm font-medium transition-colors relative overflow-hidden',
-            collapsed ? 'justify-center px-2' : 'justify-start',
-            isActive
-              ? 'bg-secondary text-secondary-foreground'
-              : 'hover:bg-accent hover:text-accent-foreground'
-          )}
-        >
-          <Icon className="h-4 w-4 flex-shrink-0" />
-          {!collapsed && (
-            <>
-              <span className="flex-1 text-left">{label}</span>
-              {badge}
-            </>
-          )}
-        </Link>
-      </motion.div>
+        <Icon className="h-4 w-4 flex-shrink-0" />
+        {!collapsed && (
+          <>
+            <span className="flex-1 text-left">{label}</span>
+            {badge}
+          </>
+        )}
+      </Link>
     );
 
     if (collapsed) {
@@ -193,13 +217,8 @@ export function Sidebar({
   };
 
   // Render a theme with its subjects
-  const renderTheme = (theme: Theme, themeIndex: number) => (
-    <motion.div
-      key={theme.id}
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: themeIndex * 0.03 }}
-    >
+  const renderTheme = (theme: Theme) => (
+    <div key={theme.id}>
       <Collapsible
         open={openThemes[theme.id] ?? false}
         onOpenChange={() => toggleTheme(theme.id)}
@@ -210,94 +229,136 @@ export function Sidebar({
               variant="ghost"
               className="flex-1 justify-start gap-2 h-8 text-sm"
             >
-              <motion.div
+              <div
                 className="h-2.5 w-2.5 rounded-sm flex-shrink-0"
                 style={{ backgroundColor: theme.color_hex }}
-                whileHover={{ scale: 1.2 }}
               />
               <span className="flex-1 text-left truncate">{theme.title}</span>
-              <motion.div
-                animate={{ rotate: openThemes[theme.id] ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                <ChevronDown className="h-3 w-3" />
-              </motion.div>
+              <ChevronDown
+                className={cn(
+                  "h-3 w-3 transition-transform duration-200",
+                  openThemes[theme.id] && "rotate-180"
+                )}
+              />
             </Button>
           </CollapsibleTrigger>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={(e) => {
-              e.stopPropagation();
-              onCreateSubject?.(theme.id);
-            }}
-          >
-            <Plus className="h-3 w-3" />
-          </Button>
+          <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCreateSubject?.(theme.id);
+              }}
+            >
+              <Plus className="h-3 w-3" />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6">
+                  <MoreHorizontal className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditTheme?.(theme.id, theme.title, theme.color_hex);
+                  }}
+                >
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Modifier
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteTheme?.(theme.id, theme.title);
+                  }}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Supprimer
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
         <CollapsibleContent>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="pl-4 space-y-0.5"
-          >
-            {getSubjectsForTheme(theme.id).map((subject, subIndex) => (
-              <motion.div
+          <div className="pl-4 space-y-0.5">
+            {getSubjectsForTheme(theme.id).map((subject) => (
+              <div
                 key={subject.id}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: subIndex * 0.02 }}
+                className="group/subjectItem flex items-center"
               >
-                <Link href={`/subject/${subject.id}`}>
+                <Link href={`/subject/${subject.id}`} className="flex-1 min-w-0">
                   <Button
                     variant={
                       pathname === `/subject/${subject.id}`
                         ? 'secondary'
                         : 'ghost'
                     }
-                    className="w-full justify-start gap-2 h-7 text-xs group/subject"
+                    className="w-full justify-start gap-2 h-7 text-xs"
                   >
-                    <motion.div
-                      whileHover={{ rotate: 10 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <Folder className="h-3 w-3" />
-                    </motion.div>
+                    <Folder className="h-3 w-3" />
                     <span className="flex-1 text-left truncate">
                       {subject.title}
                     </span>
                     {isZombie(subject.id) && (
-                      <motion.div
-                        animate={{ scale: [1, 1.1, 1] }}
-                        transition={{ duration: 2, repeat: Infinity }}
-                      >
-                        <AlertTriangle className="h-3 w-3 text-amber-500" />
-                      </motion.div>
+                      <AlertTriangle className="h-3 w-3 text-amber-500" />
                     )}
                   </Button>
                 </Link>
-              </motion.div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 opacity-0 group-hover/subjectItem:opacity-100 transition-opacity flex-shrink-0"
+                    >
+                      <MoreHorizontal className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-40">
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditSubject?.(subject.id, subject.title);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Renommer
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteSubject?.(subject.id, subject.title);
+                      }}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Supprimer
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             ))}
             {getSubjectsForTheme(theme.id).length === 0 && (
               <p className="text-xs text-muted-foreground px-2 py-1 italic">
                 No subjects
               </p>
             )}
-          </motion.div>
+          </div>
         </CollapsibleContent>
       </Collapsible>
-    </motion.div>
+    </div>
   );
 
   // Render a category with its themes
-  const renderCategory = (category: CategoryWithThemes, catIndex: number) => (
-    <motion.div
-      key={category.id}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: catIndex * 0.05 }}
-    >
+  const renderCategory = (category: CategoryWithThemes) => (
+    <div key={category.id}>
       <Collapsible
         open={openCategories[category.id] ?? true}
         onOpenChange={() => toggleCategory(category.id)}
@@ -308,142 +369,135 @@ export function Sidebar({
               variant="ghost"
               className="flex-1 justify-start gap-2"
             >
-              <motion.div whileHover={{ rotate: 10 }} transition={{ duration: 0.2 }}>
-                {openCategories[category.id] ? (
-                  <FolderOpen className="h-4 w-4" style={{ color: category.color_hex }} />
-                ) : (
-                  <Folder className="h-4 w-4" style={{ color: category.color_hex }} />
-                )}
-              </motion.div>
+              {openCategories[category.id] ? (
+                <FolderOpen className="h-4 w-4" style={{ color: category.color_hex }} />
+              ) : (
+                <Folder className="h-4 w-4" style={{ color: category.color_hex }} />
+              )}
               <span className="flex-1 text-left truncate font-medium">
                 {category.title}
               </span>
-              <motion.div
-                animate={{ rotate: openCategories[category.id] ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                <ChevronDown className="h-4 w-4" />
-              </motion.div>
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 transition-transform duration-200",
+                  openCategories[category.id] && "rotate-180"
+                )}
+              />
             </Button>
           </CollapsibleTrigger>
           {category.id !== 'uncategorized' && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={(e) => {
-                e.stopPropagation();
-                onCreateTheme?.();
-              }}
-            >
-              <Plus className="h-3 w-3" />
-            </Button>
+            <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCreateTheme?.(category.id);
+                }}
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                    <MoreHorizontal className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditCategory?.(category.id, category.title, category.color_hex);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Modifier
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteCategory?.(category.id, category.title);
+                    }}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Supprimer
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           )}
         </div>
         <CollapsibleContent>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="pl-3 space-y-0.5"
-          >
-            {category.themes.map((theme, themeIndex) => renderTheme(theme, themeIndex))}
+          <div className="pl-3 space-y-0.5">
+            {category.themes.map((theme) => renderTheme(theme))}
             {category.themes.length === 0 && (
               <p className="text-xs text-muted-foreground px-2 py-1 italic">
                 No themes
               </p>
             )}
-          </motion.div>
+          </div>
         </CollapsibleContent>
       </Collapsible>
-    </motion.div>
+    </div>
   );
 
   return (
-    <motion.div
-      initial={false}
-      animate={{ width: collapsed ? 64 : 256 }}
-      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-      className="hidden md:flex h-screen flex-col border-r bg-background"
+    <div
+      className={cn(
+        "hidden md:flex h-screen flex-col border-r bg-background transition-all duration-300 ease-out",
+        collapsed ? "w-16" : "w-64"
+      )}
     >
       {/* Logo */}
       <div className="flex h-14 items-center border-b px-4 justify-between">
         <Link href="/" className="flex items-center gap-2 font-semibold">
-          <motion.div
-            className="h-8 w-8 rounded-lg bg-slate-900 flex items-center justify-center flex-shrink-0"
-            whileHover={{ scale: 1.05, rotate: 3 }}
-            whileTap={{ scale: 0.95 }}
-          >
+          <div className="h-8 w-8 rounded-lg bg-slate-900 flex items-center justify-center flex-shrink-0">
             <span className="text-white text-sm font-bold">S</span>
-          </motion.div>
-          <AnimatePresence mode="wait">
-            {!collapsed && (
-              <motion.span
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: 'auto' }}
-                exit={{ opacity: 0, width: 0 }}
-                transition={{ duration: 0.2 }}
-                className="tracking-tight overflow-hidden whitespace-nowrap"
-              >
-                SEDERIZE
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </Link>
-        <AnimatePresence mode="wait">
+          </div>
           {!collapsed && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-            >
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 flex-shrink-0"
-                onClick={() => onCollapsedChange?.(true)}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-            </motion.div>
+            <span className="tracking-tight overflow-hidden whitespace-nowrap">
+              SEDERIZE
+            </span>
           )}
-        </AnimatePresence>
+        </Link>
+        {!collapsed && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 flex-shrink-0"
+            onClick={() => onCollapsedChange?.(true)}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       {/* Expand button when collapsed */}
-      <AnimatePresence>
-        {collapsed && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="px-2 py-2"
-          >
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-full"
-                  onClick={() => onCollapsedChange?.(false)}
-                >
-                  <motion.div
-                    whileHover={{ x: 2 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </motion.div>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">Expand sidebar</TooltipContent>
-            </Tooltip>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {collapsed && (
+        <div className="px-2 py-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="w-full"
+                onClick={() => onCollapsedChange?.(false)}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Expand sidebar</TooltipContent>
+          </Tooltip>
+        </div>
+      )}
 
       {/* Main Navigation */}
       <ScrollArea className="flex-1 px-2 py-4">
         <div className="space-y-1">
-          {mainNavItems.map((item, index) => {
+          {mainNavItems.map((item) => {
             const isInbox = item.href === '/inbox';
             const isPending = item.href === '/pending';
 
@@ -451,23 +505,15 @@ export function Sidebar({
 
             if (isInbox && (inboxCount ?? 0) > 0) {
               badge = (
-                <motion.span
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary"
-                >
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
                   {inboxCount}
-                </motion.span>
+                </span>
               );
             } else if (isPending && (waitingCount ?? 0) > 0) {
               badge = (
-                <motion.span
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="text-xs px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-500"
-                >
+                <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-500">
                   {waitingCount}
-                </motion.span>
+                </span>
               );
             }
 
@@ -479,7 +525,6 @@ export function Sidebar({
                 label={item.title}
                 isActive={pathname === item.href}
                 badge={badge}
-                index={index}
               />
             );
           })}
@@ -488,133 +533,98 @@ export function Sidebar({
         <Separator className="my-4" />
 
         {/* Categories > Themes > Subjects - Hide when collapsed */}
-        <AnimatePresence mode="wait">
-          {!collapsed && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="space-y-1"
-            >
-              <div className="flex items-center justify-between px-2 py-1">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Projects
-                </span>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </motion.div>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem onClick={onCreateCategory}>
-                      <Layers className="h-4 w-4 mr-2" />
-                      Nouvelle Catégorie
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={onCreateTheme}>
-                      <Palette className="h-4 w-4 mr-2" />
-                      Nouveau Thème
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onCreateSubject?.('')}>
-                      <FolderPlus className="h-4 w-4 mr-2" />
-                      Nouveau Sujet
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+        {!collapsed && (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between px-2 py-1">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Catégories
+              </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                  >
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={onCreateCategory}>
+                    <Layers className="h-4 w-4 mr-2" />
+                    Nouvelle Catégorie
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onCreateTheme?.()}>
+                    <Palette className="h-4 w-4 mr-2" />
+                    Nouveau Thème
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onCreateSubject?.('')}>
+                    <FolderPlus className="h-4 w-4 mr-2" />
+                    Nouveau Sujet
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
 
-              {categories?.map((category, index) => renderCategory(category, index))}
+            {categories?.map((category) => renderCategory(category))}
 
-              {(!categories || categories.length === 0) && (
-                <p className="text-xs text-muted-foreground px-2 py-2 text-center">
-                  No categories yet
-                </p>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+            {(!categories || categories.length === 0) && (
+              <p className="text-xs text-muted-foreground px-2 py-2 text-center">
+                No categories yet
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Collapsed: Show category color dots only */}
-        <AnimatePresence>
-          {collapsed && categories && categories.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="space-y-1"
-            >
-              {categories.map((category, index) => (
-                <motion.div
-                  key={category.id}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-center"
-                        onClick={() => {
-                          onCollapsedChange?.(false);
-                          setOpenCategories((prev) => ({ ...prev, [category.id]: true }));
-                        }}
-                      >
-                        <motion.div whileHover={{ scale: 1.2 }}>
-                          <Folder className="h-4 w-4" style={{ color: category.color_hex }} />
-                        </motion.div>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      {category.title}
-                    </TooltipContent>
-                  </Tooltip>
-                </motion.div>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {collapsed && categories && categories.length > 0 && (
+          <div className="space-y-1">
+            {categories.map((category) => (
+              <Tooltip key={category.id}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-center"
+                    onClick={() => {
+                      onCollapsedChange?.(false);
+                      setOpenCategories((prev) => ({ ...prev, [category.id]: true }));
+                    }}
+                  >
+                    <Folder className="h-4 w-4" style={{ color: category.color_hex }} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  {category.title}
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+        )}
       </ScrollArea>
 
       {/* Footer */}
-      <motion.div
-        className="border-t p-2 space-y-1"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.3 }}
-      >
+      <div className="border-t p-2 space-y-1">
         {collapsed ? (
           <>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Link href="/settings">
-                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                    <Button variant="ghost" className="w-full justify-center">
-                      <Settings className="h-4 w-4" />
-                    </Button>
-                  </motion.div>
+                  <Button variant="ghost" className="w-full justify-center">
+                    <Settings className="h-4 w-4" />
+                  </Button>
                 </Link>
               </TooltipTrigger>
               <TooltipContent side="right">Settings</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-center text-muted-foreground"
-                    onClick={signOut}
-                  >
-                    <LogOut className="h-4 w-4" />
-                  </Button>
-                </motion.div>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-center text-muted-foreground"
+                  onClick={signOut}
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
               </TooltipTrigger>
               <TooltipContent side="right">Sign Out</TooltipContent>
             </Tooltip>
@@ -622,26 +632,22 @@ export function Sidebar({
         ) : (
           <>
             <Link href="/settings">
-              <motion.div whileHover={{ x: 2 }} transition={{ duration: 0.2 }}>
-                <Button variant="ghost" className="w-full justify-start gap-2">
-                  <Settings className="h-4 w-4" />
-                  Settings
-                </Button>
-              </motion.div>
-            </Link>
-            <motion.div whileHover={{ x: 2 }} transition={{ duration: 0.2 }}>
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-2 text-muted-foreground"
-                onClick={signOut}
-              >
-                <LogOut className="h-4 w-4" />
-                Sign Out
+              <Button variant="ghost" className="w-full justify-start gap-2">
+                <Settings className="h-4 w-4" />
+                Settings
               </Button>
-            </motion.div>
+            </Link>
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-2 text-muted-foreground"
+              onClick={signOut}
+            >
+              <LogOut className="h-4 w-4" />
+              Sign Out
+            </Button>
           </>
         )}
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

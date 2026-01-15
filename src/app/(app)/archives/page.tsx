@@ -47,7 +47,8 @@ export default function ArchivesPage() {
 
       if (error) throw error;
 
-      return (data || []).map((task) => ({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (data || []).map((task: any) => ({
         ...task,
         theme: task.subject?.theme || null,
       })) as TaskWithRelations[];
@@ -105,7 +106,7 @@ export default function ArchivesPage() {
     selectedMonth.getFullYear() === new Date().getFullYear();
 
   return (
-    <div className="container max-w-4xl py-6 space-y-6">
+    <div className="max-w-4xl mx-auto p-4 md:p-6 pt-6 md:pt-8 space-y-6">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -201,7 +202,7 @@ export default function ArchivesPage() {
             ))}
           </div>
         ) : groupedTasks.length > 0 ? (
-          <AnimatePresence mode="popLayout">
+          <AnimatePresence mode="sync">
             <div className="space-y-6">
               {groupedTasks.map((group, groupIndex) => (
                 <motion.div

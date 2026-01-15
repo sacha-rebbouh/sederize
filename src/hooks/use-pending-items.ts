@@ -2,6 +2,8 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
+import { queryKeys } from '@/lib/query-keys';
+import { STALE_TIMES } from '@/providers/query-provider';
 import {
   PendingItem,
   PendingItemWithRelations,
@@ -12,7 +14,7 @@ import { addDays, format } from 'date-fns';
 // Fetch all pending items for the current user
 export function usePendingItems(status?: PendingStatus) {
   return useQuery({
-    queryKey: ['pending-items', status],
+    queryKey: queryKeys.pendingItems.byStatus(status),
     queryFn: async () => {
       const supabase = createClient();
       let query = supabase
@@ -35,13 +37,14 @@ export function usePendingItems(status?: PendingStatus) {
       if (error) throw error;
       return (data || []) as PendingItemWithRelations[];
     },
+    staleTime: STALE_TIMES.pendingItems,
   });
 }
 
 // Fetch pending items count (for badge)
 export function usePendingItemsCount() {
   return useQuery({
-    queryKey: ['pending-items', 'count'],
+    queryKey: queryKeys.pendingItems.count(),
     queryFn: async () => {
       const supabase = createClient();
       const { count, error } = await supabase
@@ -52,13 +55,14 @@ export function usePendingItemsCount() {
       if (error) throw error;
       return count || 0;
     },
+    staleTime: STALE_TIMES.pendingItems,
   });
 }
 
 // Fetch oldest pending items for Daily Brief
 export function useOldestPendingItems(limit: number = 5) {
   return useQuery({
-    queryKey: ['pending-items', 'oldest', limit],
+    queryKey: queryKeys.pendingItems.oldest(limit),
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
@@ -77,6 +81,7 @@ export function useOldestPendingItems(limit: number = 5) {
       if (error) throw error;
       return (data || []) as PendingItemWithRelations[];
     },
+    staleTime: STALE_TIMES.pendingItems,
   });
 }
 
@@ -120,7 +125,7 @@ export function useCreatePendingItem() {
       return data as PendingItem;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pending-items'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pendingItems.all });
     },
   });
 }
@@ -160,7 +165,7 @@ export function useUpdatePendingItem() {
       return data as PendingItem;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pending-items'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pendingItems.all });
     },
   });
 }
@@ -199,7 +204,7 @@ export function useRemindPendingItem() {
       return data as PendingItem;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pending-items'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pendingItems.all });
     },
   });
 }
@@ -226,7 +231,7 @@ export function useResolvePendingItem() {
       return data as PendingItem;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pending-items'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pendingItems.all });
     },
   });
 }
@@ -246,7 +251,7 @@ export function useDeletePendingItem() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pending-items'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pendingItems.all });
     },
   });
 }

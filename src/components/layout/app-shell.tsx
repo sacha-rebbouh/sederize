@@ -1,15 +1,34 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
+import { toast } from 'sonner';
 import { Sidebar } from './sidebar';
 import { BottomNav } from './bottom-nav';
 import { MobileMenu } from './mobile-menu';
-import { QuickAdd } from '@/components/tasks/quick-add';
-import { CommandPalette } from '@/components/command-palette';
-import { CreateThemeDialog } from '@/components/themes/create-theme-dialog';
-import { CreateSubjectDialog } from '@/components/subjects/create-subject-dialog';
-import { CreateCategoryDialog } from '@/components/categories/create-category-dialog';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { useDeleteCategory, useUpdateCategory } from '@/hooks/use-categories';
+import { useDeleteTheme, useUpdateTheme } from '@/hooks/use-themes';
+import { useDeleteSubject, useUpdateSubject } from '@/hooks/use-subjects';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { EditEntityDialog } from '@/components/ui/edit-entity-dialog';
+
+// Lazy load heavy components that are conditionally rendered
+const QuickAdd = dynamic(() => import('@/components/tasks/quick-add').then(m => m.QuickAdd), {
+  ssr: false,
+});
+const CommandPalette = dynamic(() => import('@/components/command-palette').then(m => m.CommandPalette), {
+  ssr: false,
+});
+const CreateThemeDialog = dynamic(() => import('@/components/themes/create-theme-dialog').then(m => m.CreateThemeDialog), {
+  ssr: false,
+});
+const CreateSubjectDialog = dynamic(() => import('@/components/subjects/create-subject-dialog').then(m => m.CreateSubjectDialog), {
+  ssr: false,
+});
+const CreateCategoryDialog = dynamic(() => import('@/components/categories/create-category-dialog').then(m => m.CreateCategoryDialog), {
+  ssr: false,
+});
 
 const SIDEBAR_COLLAPSED_KEY = 'sederize-sidebar-collapsed';
 
@@ -24,7 +43,30 @@ export function AppShell({ children }: AppShellProps) {
   const [createSubjectOpen, setCreateSubjectOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Delete dialogs state
+  const [deleteDialog, setDeleteDialog] = useState<{
+    type: 'category' | 'theme' | 'subject';
+    id: string;
+    title: string;
+  } | null>(null);
+
+  // Edit dialogs state
+  const [editDialog, setEditDialog] = useState<{
+    type: 'category' | 'theme' | 'subject';
+    id: string;
+    title: string;
+    color?: string;
+  } | null>(null);
+
+  const deleteCategory = useDeleteCategory();
+  const deleteTheme = useDeleteTheme();
+  const deleteSubject = useDeleteSubject();
+  const updateCategory = useUpdateCategory();
+  const updateTheme = useUpdateTheme();
+  const updateSubject = useUpdateSubject();
 
   // Load sidebar state from localStorage
   useEffect(() => {
@@ -40,6 +82,11 @@ export function AppShell({ children }: AppShellProps) {
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed));
   };
 
+  const handleCreateTheme = (categoryId?: string) => {
+    setSelectedCategoryId(categoryId ?? null);
+    setCreateThemeOpen(true);
+  };
+
   const handleCreateSubject = (themeId: string) => {
     setSelectedThemeId(themeId);
     setCreateSubjectOpen(true);
@@ -51,6 +98,90 @@ export function AppShell({ children }: AppShellProps) {
     setCreateSubjectOpen(true);
   };
 
+  const handleDeleteCategory = (id: string, title: string) => {
+    setDeleteDialog({ type: 'category', id, title });
+  };
+
+  const handleDeleteTheme = (id: string, title: string) => {
+    setDeleteDialog({ type: 'theme', id, title });
+  };
+
+  const handleDeleteSubject = (id: string, title: string) => {
+    setDeleteDialog({ type: 'subject', id, title });
+  };
+
+  const handleEditCategory = (id: string, title: string, color: string) => {
+    setEditDialog({ type: 'category', id, title, color });
+  };
+
+  const handleEditTheme = (id: string, title: string, color: string) => {
+    setEditDialog({ type: 'theme', id, title, color });
+  };
+
+  const handleEditSubject = (id: string, title: string) => {
+    setEditDialog({ type: 'subject', id, title });
+  };
+
+  const handleSaveEdit = (title: string, color?: string) => {
+    if (!editDialog) return;
+
+    const { type, id } = editDialog;
+
+    if (type === 'category') {
+      updateCategory.mutate(
+        { id, title, color_hex: color },
+        {
+          onSuccess: () => {
+            toast.success('Catégorie modifiée');
+            setEditDialog(null);
+          },
+        }
+      );
+    } else if (type === 'theme') {
+      updateTheme.mutate(
+        { id, title, color_hex: color },
+        {
+          onSuccess: () => {
+            toast.success('Thème modifié');
+            setEditDialog(null);
+          },
+        }
+      );
+    } else if (type === 'subject') {
+      updateSubject.mutate(
+        { id, title },
+        {
+          onSuccess: () => {
+            toast.success('Sujet modifié');
+            setEditDialog(null);
+          },
+        }
+      );
+    }
+  };
+
+  const confirmDelete = () => {
+    if (!deleteDialog) return;
+
+    const { type, id, title } = deleteDialog;
+
+    if (type === 'category') {
+      deleteCategory.mutate(id, {
+        onSuccess: () => toast.success(`Catégorie "${title}" supprimée`),
+      });
+    } else if (type === 'theme') {
+      deleteTheme.mutate(id, {
+        onSuccess: () => toast.success(`Thème "${title}" supprimé`),
+      });
+    } else if (type === 'subject') {
+      deleteSubject.mutate(id, {
+        onSuccess: () => toast.success(`Sujet "${title}" supprimé`),
+      });
+    }
+
+    setDeleteDialog(null);
+  };
+
   return (
     <TooltipProvider delayDuration={0}>
       <div className="flex h-screen bg-background">
@@ -59,8 +190,14 @@ export function AppShell({ children }: AppShellProps) {
           collapsed={sidebarCollapsed}
           onCollapsedChange={handleSidebarCollapse}
           onCreateCategory={() => setCreateCategoryOpen(true)}
-          onCreateTheme={() => setCreateThemeOpen(true)}
+          onCreateTheme={handleCreateTheme}
           onCreateSubject={handleCreateSubject}
+          onDeleteCategory={handleDeleteCategory}
+          onDeleteTheme={handleDeleteTheme}
+          onDeleteSubject={handleDeleteSubject}
+          onEditCategory={handleEditCategory}
+          onEditTheme={handleEditTheme}
+          onEditSubject={handleEditSubject}
         />
 
         {/* Main Content */}
@@ -80,7 +217,7 @@ export function AppShell({ children }: AppShellProps) {
         {/* Command Palette (Cmd+K) */}
         <CommandPalette
           onCreateTask={() => setQuickAddOpen(true)}
-          onCreateTheme={() => setCreateThemeOpen(true)}
+          onCreateTheme={() => handleCreateTheme()}
           onCreateSubject={handleCreateSubjectFromPalette}
         />
 
@@ -94,6 +231,7 @@ export function AppShell({ children }: AppShellProps) {
         <CreateThemeDialog
           open={createThemeOpen}
           onOpenChange={setCreateThemeOpen}
+          categoryId={selectedCategoryId}
         />
 
         {/* Create Subject Dialog */}
@@ -102,6 +240,47 @@ export function AppShell({ children }: AppShellProps) {
           onOpenChange={setCreateSubjectOpen}
           themeId={selectedThemeId}
         />
+
+        {/* Delete Confirmation Dialog */}
+        <ConfirmDialog
+          open={!!deleteDialog}
+          onOpenChange={(open) => !open && setDeleteDialog(null)}
+          title={
+            deleteDialog?.type === 'category'
+              ? 'Supprimer cette catégorie ?'
+              : deleteDialog?.type === 'theme'
+              ? 'Supprimer ce thème ?'
+              : 'Supprimer ce sujet ?'
+          }
+          description={
+            deleteDialog?.type === 'category'
+              ? `La catégorie "${deleteDialog?.title}" sera supprimée. Les thèmes qu'elle contient deviendront non-catégorisés.`
+              : deleteDialog?.type === 'theme'
+              ? `Le thème "${deleteDialog?.title}" et tous ses sujets et tâches seront supprimés.`
+              : `Le sujet "${deleteDialog?.title}" et toutes ses tâches seront supprimés.`
+          }
+          confirmLabel="Supprimer"
+          cancelLabel="Annuler"
+          variant="destructive"
+          onConfirm={confirmDelete}
+        />
+
+        {/* Edit Entity Dialog */}
+        {editDialog && (
+          <EditEntityDialog
+            open={!!editDialog}
+            onOpenChange={(open) => !open && setEditDialog(null)}
+            type={editDialog.type}
+            initialTitle={editDialog.title}
+            initialColor={editDialog.color}
+            onSave={handleSaveEdit}
+            isPending={
+              updateCategory.isPending ||
+              updateTheme.isPending ||
+              updateSubject.isPending
+            }
+          />
+        )}
       </div>
     </TooltipProvider>
   );

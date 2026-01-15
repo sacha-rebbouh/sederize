@@ -2,11 +2,17 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
+import { queryKeys } from '@/lib/query-keys';
+import { STALE_TIMES } from '@/providers/query-provider';
 import { Theme, CreateThemeInput, UpdateThemeInput } from '@/types/database';
 
-export function useThemes() {
+interface UseThemesOptions {
+  enabled?: boolean;
+}
+
+export function useThemes(options?: UseThemesOptions) {
   return useQuery({
-    queryKey: ['themes'],
+    queryKey: queryKeys.themes.lists(),
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
@@ -17,12 +23,14 @@ export function useThemes() {
       if (error) throw error;
       return data as Theme[];
     },
+    staleTime: STALE_TIMES.themes,
+    enabled: options?.enabled ?? true,
   });
 }
 
 export function useTheme(id: string) {
   return useQuery({
-    queryKey: ['themes', id],
+    queryKey: queryKeys.themes.detail(id),
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
@@ -35,6 +43,7 @@ export function useTheme(id: string) {
       return data as Theme;
     },
     enabled: !!id,
+    staleTime: STALE_TIMES.themes,
   });
 }
 
@@ -66,7 +75,9 @@ export function useCreateTheme() {
       return data as Theme;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['themes'] });
+      // Invalidate themes list and categories with themes (sidebar needs update)
+      queryClient.invalidateQueries({ queryKey: queryKeys.themes.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories.withThemes() });
     },
   });
 }
@@ -87,11 +98,17 @@ export function useUpdateTheme() {
       if (error) throw error;
       return data as Theme;
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['themes'] });
-      queryClient.invalidateQueries({ queryKey: ['themes', data.id] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.themes.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories.withThemes() });
     },
   });
+}
+
+interface CategoryWithThemes {
+  id: string;
+  themes: Theme[];
+  [key: string]: unknown;
 }
 
 export function useDeleteTheme() {
@@ -103,9 +120,50 @@ export function useDeleteTheme() {
       const { error } = await supabase.from('themes').delete().eq('id', id);
 
       if (error) throw error;
+      return id;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['themes'] });
+    onMutate: async (id: string) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: queryKeys.themes.all });
+      await queryClient.cancelQueries({ queryKey: queryKeys.categories.withThemes() });
+
+      // Snapshot current state
+      const previousThemes = queryClient.getQueryData<Theme[]>(queryKeys.themes.lists());
+      const previousWithThemes = queryClient.getQueryData<CategoryWithThemes[]>(queryKeys.categories.withThemes());
+
+      // Optimistically remove from cache
+      if (previousThemes) {
+        queryClient.setQueryData<Theme[]>(
+          queryKeys.themes.lists(),
+          previousThemes.filter((t) => t.id !== id)
+        );
+      }
+      if (previousWithThemes) {
+        queryClient.setQueryData<CategoryWithThemes[]>(
+          queryKeys.categories.withThemes(),
+          previousWithThemes.map((cat) => ({
+            ...cat,
+            themes: cat.themes.filter((t) => t.id !== id),
+          }))
+        );
+      }
+
+      return { previousThemes, previousWithThemes };
+    },
+    onError: (_err, _id, context) => {
+      // Rollback on error
+      if (context?.previousThemes) {
+        queryClient.setQueryData(queryKeys.themes.lists(), context.previousThemes);
+      }
+      if (context?.previousWithThemes) {
+        queryClient.setQueryData(queryKeys.categories.withThemes(), context.previousWithThemes);
+      }
+    },
+    onSettled: () => {
+      // Refetch in background to ensure consistency
+      queryClient.invalidateQueries({ queryKey: queryKeys.themes.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories.withThemes() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.subjects.all });
     },
   });
 }

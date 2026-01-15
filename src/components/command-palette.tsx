@@ -43,34 +43,81 @@ export function CommandPalette({
   const [search, setSearch] = useState('');
   const router = useRouter();
 
-  const { data: themes } = useThemes();
-  const { data: subjects } = useActiveSubjects();
-  const { data: tasks } = useAllTasks();
+  // DEFERRED QUERIES: Only fetch when dialog is open
+  // This eliminates 3 unnecessary API calls on every page load
+  const { data: themes } = useThemes({ enabled: open });
+  const { data: subjects } = useActiveSubjects({ enabled: open });
+  const { data: tasks } = useAllTasks({ enabled: open });
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts - simplified to single keys
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      // Cmd+K or Ctrl+K to open
+      // Skip if typing in an input
+      const isTyping =
+        document.activeElement?.tagName === 'INPUT' ||
+        document.activeElement?.tagName === 'TEXTAREA' ||
+        (document.activeElement as HTMLElement)?.isContentEditable;
+
+      // Cmd+K or Ctrl+K to open (always works)
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         setOpen((open) => !open);
+        return;
       }
-      // "C" to create task (only if no input is focused)
-      if (
-        e.key === 'c' &&
-        !e.metaKey &&
-        !e.ctrlKey &&
-        document.activeElement?.tagName !== 'INPUT' &&
-        document.activeElement?.tagName !== 'TEXTAREA'
-      ) {
-        e.preventDefault();
-        onCreateTask?.();
+
+      // Skip other shortcuts if typing
+      if (isTyping) return;
+
+      // Single-key shortcuts (no modifier required)
+      switch (e.key.toLowerCase()) {
+        case 'c':
+          // "C" to create task
+          e.preventDefault();
+          onCreateTask?.();
+          break;
+        case 'd':
+          // "D" for Daily Brief
+          e.preventDefault();
+          router.push('/');
+          break;
+        case 'i':
+          // "I" for Inbox
+          e.preventDefault();
+          router.push('/inbox');
+          break;
+        case 'l':
+          // "L" for caLendar
+          e.preventDefault();
+          router.push('/calendar');
+          break;
+        case 'b':
+          // "B" for kanBan
+          e.preventDefault();
+          router.push('/kanban');
+          break;
+        case 't':
+          // "T" for Tasks
+          e.preventDefault();
+          router.push('/tasks');
+          break;
+        case 'p':
+          // "P" for Pending
+          e.preventDefault();
+          router.push('/pending');
+          break;
+        case 'a':
+          // "A" for Archives
+          e.preventDefault();
+          router.push('/archives');
+          break;
       }
     };
 
     document.addEventListener('keydown', down);
-    return () => document.removeEventListener('keydown', down);
-  }, [onCreateTask]);
+    return () => {
+      document.removeEventListener('keydown', down);
+    };
+  }, [onCreateTask, router]);
 
   const navigate = useCallback(
     (path: string) => {

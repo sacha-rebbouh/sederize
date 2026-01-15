@@ -2,12 +2,11 @@
 
 import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { formatDistanceToNow } from 'date-fns';
-import { fr } from 'date-fns/locale';
 import {
   Clock,
   Hourglass,
   Search,
+  Layers,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,11 +15,23 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useWaitingForTasks } from '@/hooks/use-tasks';
 import { TaskCard } from '@/components/tasks/task-card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { TaskWithRelations, Theme } from '@/types/database';
+import { TaskWithRelations, Theme, Category } from '@/types/database';
 
-interface GroupedByTheme {
-  theme: Theme | null;
-  tasks: TaskWithRelations[];
+interface GroupedByCategory {
+  category: Category | null;
+  themes: {
+    theme: Theme | null;
+    tasks: TaskWithRelations[];
+  }[];
+}
+
+// Build hierarchy label: Category › Theme › Subject
+function getHierarchyLabel(task: TaskWithRelations): string | null {
+  const parts: string[] = [];
+  if (task.category?.title) parts.push(task.category.title);
+  if (task.theme?.title) parts.push(task.theme.title);
+  if (task.subject?.title) parts.push(task.subject.title);
+  return parts.length > 0 ? parts.join(' › ') : null;
 }
 
 export default function PendingPage() {
@@ -38,31 +49,54 @@ export default function PendingPage() {
         task.description?.toLowerCase().includes(query) ||
         task.waiting_for_note?.toLowerCase().includes(query) ||
         task.subject?.title.toLowerCase().includes(query) ||
-        task.theme?.title.toLowerCase().includes(query)
+        task.theme?.title.toLowerCase().includes(query) ||
+        task.category?.title.toLowerCase().includes(query)
     );
   }, [waitingTasks, searchQuery]);
 
-  // Group tasks by theme
+  // Group tasks by category then theme
   const groupedTasks = useMemo(() => {
-    const groups: Map<string | null, GroupedByTheme> = new Map();
+    const categoryMap: Map<string | null, GroupedByCategory> = new Map();
 
     filteredTasks.forEach((task) => {
+      const categoryId = task.category?.id || null;
       const themeId = task.theme?.id || null;
-      if (!groups.has(themeId)) {
-        groups.set(themeId, { theme: task.theme || null, tasks: [] });
+
+      if (!categoryMap.has(categoryId)) {
+        categoryMap.set(categoryId, {
+          category: task.category || null,
+          themes: [],
+        });
       }
-      groups.get(themeId)!.tasks.push(task);
+
+      const categoryGroup = categoryMap.get(categoryId)!;
+      let themeGroup = categoryGroup.themes.find((t) => t.theme?.id === themeId);
+      if (!themeGroup) {
+        themeGroup = { theme: task.theme || null, tasks: [] };
+        categoryGroup.themes.push(themeGroup);
+      }
+      themeGroup.tasks.push(task);
     });
 
-    return Array.from(groups.values()).sort((a, b) => {
-      if (!a.theme) return 1;
-      if (!b.theme) return -1;
-      return (a.theme.order_index || 0) - (b.theme.order_index || 0);
-    });
+    // Sort categories and themes
+    return Array.from(categoryMap.values())
+      .sort((a, b) => {
+        if (!a.category) return 1;
+        if (!b.category) return -1;
+        return (a.category.order_index || 0) - (b.category.order_index || 0);
+      })
+      .map((cat) => ({
+        ...cat,
+        themes: cat.themes.sort((a, b) => {
+          if (!a.theme) return 1;
+          if (!b.theme) return -1;
+          return (a.theme.order_index || 0) - (b.theme.order_index || 0);
+        }),
+      }));
   }, [filteredTasks]);
 
   return (
-    <div className="container max-w-4xl py-6 space-y-6">
+    <div className="max-w-4xl mx-auto p-4 md:p-6 pt-6 md:pt-8 space-y-6">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -144,69 +178,95 @@ export default function PendingPage() {
             </Card>
           </motion.div>
         ) : (
-          <div className="space-y-6">
-            {groupedTasks.map((group, groupIndex) => (
+          <div className="space-y-8">
+            {groupedTasks.map((categoryGroup, catIndex) => (
               <motion.div
-                key={group.theme?.id || 'unassigned'}
+                key={categoryGroup.category?.id || 'unassigned'}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: groupIndex * 0.05 }}
-                className="space-y-3"
+                transition={{ delay: catIndex * 0.05 }}
+                className="space-y-4"
               >
-                {/* Theme Header */}
-                <div className="flex items-center gap-2">
-                  {group.theme ? (
+                {/* Category Header */}
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  {categoryGroup.category ? (
                     <>
                       <div
-                        className="h-3 w-3 rounded-sm"
-                        style={{ backgroundColor: group.theme.color_hex }}
+                        className="h-4 w-4 rounded-md"
+                        style={{ backgroundColor: categoryGroup.category.color_hex }}
                       />
-                      <h2 className="font-semibold">{group.theme.title}</h2>
+                      <h2 className="text-lg font-bold">{categoryGroup.category.title}</h2>
                     </>
                   ) : (
                     <>
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      <h2 className="font-semibold text-muted-foreground">Sans thème</h2>
+                      <Layers className="h-4 w-4 text-muted-foreground" />
+                      <h2 className="text-lg font-bold text-muted-foreground">Sans catégorie</h2>
                     </>
                   )}
-                  <Badge variant="secondary" className="text-xs">
-                    {group.tasks.length}
+                  <Badge variant="secondary" className="ml-auto">
+                    {categoryGroup.themes.reduce((sum, t) => sum + t.tasks.length, 0)} tâche{categoryGroup.themes.reduce((sum, t) => sum + t.tasks.length, 0) !== 1 ? 's' : ''}
                   </Badge>
                 </div>
 
-                {/* Tasks */}
-                <AnimatePresence mode="popLayout">
-                  <div className="space-y-2">
-                    {group.tasks.map((task, taskIndex) => (
-                      <motion.div
-                        key={task.id}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: taskIndex * 0.03 }}
-                      >
-                        <div className="relative">
-                          <TaskCard
-                            task={task}
-                            theme={task.theme}
-                            labels={task.labels}
-                            showSubject
-                            subjectTitle={task.subject?.title}
-                          />
-                          {/* Waiting note indicator */}
-                          {task.waiting_for_note && (
-                            <div className="mt-1 ml-10 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                              <Hourglass className="h-3 w-3" />
-                              <span className="italic">{task.waiting_for_note}</span>
-                              <span className="text-muted-foreground">
-                                · {formatDistanceToNow(new Date(task.updated_at), { addSuffix: true, locale: fr })}
-                              </span>
-                            </div>
-                          )}
+                {/* Themes within category */}
+                <div className="space-y-6 pl-4">
+                  {categoryGroup.themes.map((themeGroup, themeIndex) => (
+                    <motion.div
+                      key={themeGroup.theme?.id || 'no-theme'}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: themeIndex * 0.03 }}
+                      className="space-y-3"
+                    >
+                      {/* Theme Header */}
+                      <div className="flex items-center gap-2">
+                        {themeGroup.theme ? (
+                          <>
+                            <div
+                              className="h-3 w-3 rounded-sm"
+                              style={{ backgroundColor: themeGroup.theme.color_hex }}
+                            />
+                            <h3 className="font-semibold">{themeGroup.theme.title}</h3>
+                          </>
+                        ) : (
+                          <>
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                            <h3 className="font-semibold text-muted-foreground">Sans thème</h3>
+                          </>
+                        )}
+                        <Badge variant="secondary" className="text-xs">
+                          {themeGroup.tasks.length}
+                        </Badge>
+                      </div>
+
+                      {/* Tasks */}
+                      <AnimatePresence mode="sync">
+                        <div className="space-y-2">
+                          {themeGroup.tasks.map((task, taskIndex) => {
+                            const hierarchy = getHierarchyLabel(task);
+                            return (
+                              <motion.div
+                                key={task.id}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: taskIndex * 0.03 }}
+                              >
+                                <TaskCard
+                                  task={task}
+                                  theme={task.theme}
+                                  labels={task.labels}
+                                  showSubject
+                                  subjectTitle={hierarchy || task.subject?.title}
+                                  showTimestamp
+                                />
+                              </motion.div>
+                            );
+                          })}
                         </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                </AnimatePresence>
+                      </AnimatePresence>
+                    </motion.div>
+                  ))}
+                </div>
               </motion.div>
             ))}
           </div>

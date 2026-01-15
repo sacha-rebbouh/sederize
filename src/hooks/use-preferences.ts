@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { ViewType, ThemeMode, UpdatePreferencesInput, UserPreferences } from '@/types/database';
 
 const LOCAL_STORAGE_KEY = 'sederize-preferences';
+const PREFERRED_VIEW_COOKIE = 'sederize-preferred-view'; // Must match middleware.ts
 
 interface LocalPreferences {
   preferred_view: ViewType;
@@ -38,7 +39,16 @@ function getLocalPreferences(): LocalPreferences {
   return DEFAULT_PREFERENCES;
 }
 
-// Save preferences to localStorage
+// Set a cookie for middleware to read (server-side redirect)
+function setPreferredViewCookie(view: ViewType) {
+  if (typeof document === 'undefined') return;
+  // Set cookie with 1 year expiry, path=/, SameSite=Lax
+  const expires = new Date();
+  expires.setFullYear(expires.getFullYear() + 1);
+  document.cookie = `${PREFERRED_VIEW_COOKIE}=${view}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+}
+
+// Save preferences to localStorage (and cookie for preferred_view)
 function setLocalPreferences(prefs: Partial<LocalPreferences>) {
   if (typeof window === 'undefined') return;
 
@@ -46,6 +56,11 @@ function setLocalPreferences(prefs: Partial<LocalPreferences>) {
     const current = getLocalPreferences();
     const updated = { ...current, ...prefs };
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+
+    // Also set cookie for middleware if preferred_view changed
+    if (prefs.preferred_view) {
+      setPreferredViewCookie(prefs.preferred_view);
+    }
   } catch {
     // Ignore storage errors
   }
@@ -56,10 +71,20 @@ export function useLocalPreferences() {
   const [preferences, setPreferences] = useState<LocalPreferences>(DEFAULT_PREFERENCES);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load from localStorage on mount
+  // Load from localStorage on mount and sync cookie
   useEffect(() => {
-    setPreferences(getLocalPreferences());
+    const prefs = getLocalPreferences();
+    setPreferences(prefs);
     setIsLoaded(true);
+
+    // Sync the cookie if it doesn't exist or differs (for existing users)
+    if (typeof document !== 'undefined') {
+      const cookieMatch = document.cookie.match(new RegExp(`${PREFERRED_VIEW_COOKIE}=([^;]+)`));
+      const cookieValue = cookieMatch ? cookieMatch[1] : null;
+      if (cookieValue !== prefs.preferred_view) {
+        setPreferredViewCookie(prefs.preferred_view);
+      }
+    }
   }, []);
 
   const updatePreferences = useCallback((updates: Partial<LocalPreferences>) => {

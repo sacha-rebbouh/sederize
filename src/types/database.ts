@@ -7,17 +7,19 @@ export type UserRole = 'user' | 'admin' | 'owner';
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type ViewType = 'daily-brief' | 'inbox' | 'calendar' | 'kanban';
 
-// Priority levels: 0 = normal (no badge), 1 = high (amber), 2 = urgent (red)
-export type PriorityLevel = 0 | 1 | 2;
+// Priority levels: 0 = low (blue), 1 = normal (gray), 2 = high (amber), 3 = urgent (red)
+export type PriorityLevel = 0 | 1 | 2 | 3;
 export const PRIORITY_LABELS: Record<PriorityLevel, string> = {
-  0: 'Normal',
-  1: 'High',
-  2: 'Urgent',
+  0: 'Low',
+  1: 'Normal',
+  2: 'High',
+  3: 'Urgent',
 };
 export const PRIORITY_COLORS: Record<PriorityLevel, string> = {
-  0: 'text-muted-foreground',
-  1: 'text-amber-600 dark:text-amber-400',
-  2: 'text-red-600 dark:text-red-400',
+  0: 'text-blue-600 dark:text-blue-400',
+  1: 'text-muted-foreground',
+  2: 'text-amber-600 dark:text-amber-400',
+  3: 'text-red-600 dark:text-red-400',
 };
 
 export interface Profile {
@@ -75,6 +77,8 @@ export interface Subject {
 export interface Task {
   id: string;
   subject_id: string | null;
+  theme_id: string | null;       // Direct assignment to theme (waterfall)
+  category_id: string | null;    // Direct assignment to category (waterfall)
   user_id: string;
   title: string;
   description: string | null;
@@ -162,7 +166,10 @@ export interface SubjectWithTheme extends Subject {
 
 export interface TaskWithRelations extends Task {
   subject?: Subject | null;
-  theme?: Theme | null;
+  theme?: Theme | null;           // Theme from subject OR direct theme_id
+  category?: Category | null;     // Category from theme OR direct category_id
+  direct_theme?: Theme | null;    // When assigned directly to theme (no subject)
+  direct_category?: Category | null; // When assigned directly to category (no theme)
   attachments?: TaskAttachment[];
   subtasks?: Task[];
   labels?: Label[];
@@ -171,9 +178,10 @@ export interface TaskWithRelations extends Task {
 // For daily brief grouping
 export interface DailyBriefTask extends Task {
   subject_title: string | null;
-  theme_id: string | null;
   theme_title: string | null;
   theme_color: string | null;
+  category_title: string | null;
+  category_color: string | null;
   subtask_count?: number;
   subtask_done_count?: number;
 }
@@ -234,6 +242,8 @@ export interface UpdateSubjectInput {
 
 export interface CreateTaskInput {
   subject_id?: string | null;
+  theme_id?: string | null;      // Direct assignment to theme (waterfall)
+  category_id?: string | null;   // Direct assignment to category (waterfall)
   parent_task_id?: string | null;
   title: string;
   description?: string;
@@ -244,6 +254,8 @@ export interface CreateTaskInput {
 
 export interface UpdateTaskInput {
   subject_id?: string | null;
+  theme_id?: string | null;      // Direct assignment to theme (waterfall)
+  category_id?: string | null;   // Direct assignment to category (waterfall)
   title?: string;
   description?: string | null;
   status?: TaskStatus;

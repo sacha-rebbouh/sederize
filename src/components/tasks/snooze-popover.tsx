@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { AlarmClock, CalendarDays } from 'lucide-react';
-import { format, addDays } from 'date-fns';
+import { format, addDays, startOfDay, isSameDay } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -15,32 +17,65 @@ import { cn } from '@/lib/utils';
 
 interface SnoozePopoverProps {
   taskId: string;
+  taskDate?: string | null; // Current task's do_date
   className?: string;
 }
 
-export function SnoozePopover({ taskId, className }: SnoozePopoverProps) {
+export function SnoozePopover({ taskId, taskDate, className }: SnoozePopoverProps) {
   const [open, setOpen] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const snoozeTask = useSnoozeTask();
 
   const handleSnooze = (days: number) => {
-    snoozeTask.mutate({ id: taskId, days });
+    const newDate = addDays(new Date(), days);
+    snoozeTask.mutate(
+      { id: taskId, days },
+      {
+        onSuccess: () => {
+          toast.success(`Reporté au ${format(newDate, 'EEEE d MMMM', { locale: fr })}`, {
+            icon: <AlarmClock className="h-4 w-4" />,
+          });
+        },
+      }
+    );
     setOpen(false);
   };
 
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
-      snoozeTask.mutate({ id: taskId, date });
+      snoozeTask.mutate(
+        { id: taskId, date },
+        {
+          onSuccess: () => {
+            toast.success(`Reporté au ${format(date, 'EEEE d MMMM', { locale: fr })}`, {
+              icon: <AlarmClock className="h-4 w-4" />,
+            });
+          },
+        }
+      );
       setOpen(false);
       setShowCalendar(false);
     }
   };
 
-  const quickOptions = [
-    { label: 'Tomorrow', days: 1 },
-    { label: 'In 3 days', days: 3 },
-    { label: 'Next week', days: 7 },
-  ];
+  // Filter out options that would snooze to the same date
+  const quickOptions = useMemo(() => {
+    const today = startOfDay(new Date());
+    const currentTaskDate = taskDate ? startOfDay(new Date(taskDate)) : null;
+
+    const allOptions = [
+      { label: 'Demain', days: 1 },
+      { label: 'Dans 3 jours', days: 3 },
+      { label: 'Semaine prochaine', days: 7 },
+    ];
+
+    // Filter out options where the target date is the same as the current task date
+    return allOptions.filter(option => {
+      const targetDate = addDays(today, option.days);
+      // Keep the option if task has no date, or if target date is different from current task date
+      return !currentTaskDate || !isSameDay(targetDate, currentTaskDate);
+    });
+  }, [taskDate]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

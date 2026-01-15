@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Inbox as InboxIcon, Plus, FolderInput, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
@@ -11,12 +12,13 @@ import { Badge } from '@/components/ui/badge';
 import { TaskCard } from '@/components/tasks/task-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonList, SkeletonHeader } from '@/components/ui/skeleton-card';
-import { MoveToSubjectDialog } from '@/components/tasks/move-to-subject-dialog';
+import { WaterfallAssignDialog, WaterfallSelection } from '@/components/tasks/waterfall-assign-dialog';
 import { useInboxTasks, useCreateTask, useUpdateTask } from '@/hooks/use-tasks';
-import { useActiveSubjects } from '@/hooks/use-subjects';
-import { parseTaskInput } from '@/lib/date-parser';
+import { useLabels, useSetTaskLabels } from '@/hooks/use-labels';
+import { queryKeys } from '@/lib/query-keys';
+import { parseTaskInput, findMatchingLabels } from '@/lib/date-parser';
 import { format } from 'date-fns';
-import { Task } from '@/types/database';
+import { Task, TaskWithRelations } from '@/types/database';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -34,57 +36,114 @@ const itemVariants = {
 export default function InboxPage() {
   const [newTask, setNewTask] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [moveDialogOpen, setMoveDialogOpen] = useState(false);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const queryClient = useQueryClient();
   const { data: tasks, isLoading } = useInboxTasks();
-  const { data: subjects } = useActiveSubjects();
+  const { data: labels } = useLabels();
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
+  const setTaskLabels = useSetTaskLabels();
 
-  const handleAddTask = async (e: React.FormEvent) => {
+  const handleAddTask = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTask.trim() || isSubmitting) return;
 
     setIsSubmitting(true);
     const parsed = parseTaskInput(newTask);
 
+    // Find matching labels based on the original input (before title cleanup)
+    const matchedLabels = findMatchingLabels(newTask, labels || []);
+
     try {
-      await createTask.mutateAsync({
+      // Create task with smart-parsed priority (default to 1 = Normal if not detected)
+      const createdTask = await createTask.mutateAsync({
         title: parsed.title || newTask,
         do_date: parsed.date ? format(parsed.date, 'yyyy-MM-dd') : null,
         do_time: parsed.time || null,
         subject_id: null,
+        priority: parsed.priority ?? 1,
       });
 
-      toast.success('Added to inbox', {
-        icon: <Sparkles className="h-4 w-4 text-amber-500" />,
-      });
+      // If labels were matched, assign them to the task
+      if (matchedLabels.length > 0) {
+        await setTaskLabels.mutateAsync({
+          taskId: createdTask.id,
+          labelIds: matchedLabels.map(l => l.id),
+        });
+      }
+
+      // Build success message with details
+      const details: string[] = [];
+      if (parsed.priority !== null) {
+        const priorityNames = { 0: 'Low', 1: 'Normal', 2: 'High', 3: 'Urgent' };
+        details.push(priorityNames[parsed.priority]);
+      }
+      if (matchedLabels.length > 0) {
+        details.push(`${matchedLabels.length} label${matchedLabels.length > 1 ? 's' : ''}`);
+      }
+
+      toast.success(
+        details.length > 0 ? `Added to inbox (${details.join(', ')})` : 'Added to inbox',
+        { icon: <Sparkles className="h-4 w-4 text-amber-500" /> }
+      );
       setNewTask('');
     } catch {
       toast.error('Failed to add task');
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [newTask, isSubmitting, labels, createTask, setTaskLabels]);
 
-  const handleOpenMoveDialog = (task: Task) => {
+  const handleOpenAssignDialog = useCallback((task: Task) => {
     setSelectedTask(task);
-    setMoveDialogOpen(true);
-  };
+    setAssignDialogOpen(true);
+  }, []);
 
-  const handleMoveToSubject = (subjectId: string) => {
+  const handleAssign = useCallback((selection: WaterfallSelection) => {
     if (!selectedTask) return;
-    const subject = subjects?.find(s => s.id === subjectId);
+
+    // Build assignment label for toast
+    let label = 'Inbox';
+    if (selection.subjectId) label = 'sujet';
+    else if (selection.themeId) label = 'thème';
+    else if (selection.categoryId) label = 'catégorie';
+
+    // Close dialog immediately
+    setAssignDialogOpen(false);
+
+    // Optimistic update: remove task from inbox list immediately
+    const previousTasks = queryClient.getQueryData<TaskWithRelations[]>(queryKeys.tasks.inbox());
+    if (previousTasks) {
+      queryClient.setQueryData<TaskWithRelations[]>(
+        queryKeys.tasks.inbox(),
+        previousTasks.filter(t => t.id !== selectedTask.id)
+      );
+    }
+
+    toast.success(`Assigné à ${label}`);
+
     updateTask.mutate(
-      { id: selectedTask.id, subject_id: subjectId },
+      {
+        id: selectedTask.id,
+        subject_id: selection.subjectId,
+        theme_id: selection.themeId,
+        category_id: selection.categoryId,
+      },
       {
         onSuccess: () => {
-          toast.success(`Moved to ${subject?.title || 'subject'}`);
           setSelectedTask(null);
+        },
+        onError: () => {
+          // Rollback on error
+          if (previousTasks) {
+            queryClient.setQueryData(queryKeys.tasks.inbox(), previousTasks);
+          }
+          toast.error('Erreur lors de l\'assignation');
         },
       }
     );
-  };
+  }, [selectedTask, updateTask, queryClient]);
 
   if (isLoading) {
     return (
@@ -195,7 +254,7 @@ export default function InboxPage() {
           initial="hidden"
           animate="show"
         >
-          <AnimatePresence mode="popLayout">
+          <AnimatePresence mode="sync">
             {tasks?.map((task) => (
               <motion.div
                 key={task.id}
@@ -205,17 +264,18 @@ export default function InboxPage() {
               >
                 <TaskCard task={task} labels={task.labels} />
 
-                {/* Move to Subject Button */}
+                {/* Move to Subject Button - positioned to avoid overlap with TaskCard actions */}
                 <motion.div
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="absolute right-14 top-4 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute right-24 top-4 opacity-0 group-hover:opacity-100 transition-opacity z-10"
                 >
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 bg-primary/10 hover:bg-primary/20 rounded-lg"
-                    onClick={() => handleOpenMoveDialog(task)}
+                    onClick={() => handleOpenAssignDialog(task)}
+                    title="Move to subject"
                   >
                     <FolderInput className="h-4 w-4 text-primary" />
                   </Button>
@@ -241,12 +301,16 @@ export default function InboxPage() {
       {/* Bottom padding for FAB */}
       <div className="h-20 md:h-8" />
 
-      {/* Move to Subject Dialog */}
-      <MoveToSubjectDialog
-        open={moveDialogOpen}
-        onOpenChange={setMoveDialogOpen}
-        onSelect={handleMoveToSubject}
-        currentSubjectId={selectedTask?.subject_id}
+      {/* Waterfall Assign Dialog */}
+      <WaterfallAssignDialog
+        open={assignDialogOpen}
+        onOpenChange={setAssignDialogOpen}
+        onSelect={handleAssign}
+        currentValue={{
+          categoryId: selectedTask?.category_id || null,
+          themeId: selectedTask?.theme_id || null,
+          subjectId: selectedTask?.subject_id || null,
+        }}
       />
     </motion.div>
   );

@@ -12,6 +12,7 @@ import {
   Download,
   Keyboard,
   Bell,
+  Layers,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -36,7 +37,9 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/providers/auth-provider';
 import { useThemes, useDeleteTheme, useUpdateTheme } from '@/hooks/use-themes';
+import { useCategories, useDeleteCategory, useUpdateCategory } from '@/hooks/use-categories';
 import { useLocalPreferences } from '@/hooks/use-preferences';
+import { useTheme } from '@/providers/theme-provider';
 import { cn } from '@/lib/utils';
 
 const THEME_COLORS = [
@@ -53,22 +56,30 @@ const THEME_COLORS = [
 ];
 
 const KEYBOARD_SHORTCUTS = [
-  { action: 'Open Command Palette', keys: ['Cmd', 'K'] },
-  { action: 'Quick Add Task', keys: ['C'] },
-  { action: 'Go to Daily Brief', keys: ['G', 'D'] },
-  { action: 'Go to Inbox', keys: ['G', 'I'] },
-  { action: 'Go to Calendar', keys: ['G', 'C'] },
-  { action: 'Go to Kanban', keys: ['G', 'K'] },
+  { action: 'Command Palette', keys: ['Cmd', 'K'] },
+  { action: 'Create Task', keys: ['C'] },
+  { action: 'Daily Brief', keys: ['D'] },
+  { action: 'Inbox', keys: ['I'] },
+  { action: 'Calendar', keys: ['L'] },
+  { action: 'Kanban', keys: ['B'] },
+  { action: 'All Tasks', keys: ['T'] },
+  { action: 'Pending', keys: ['P'] },
+  { action: 'Archives', keys: ['A'] },
 ];
 
 export default function SettingsPage() {
   const { user } = useAuth();
   const { data: themes } = useThemes();
+  const { data: categories } = useCategories();
   const deleteTheme = useDeleteTheme();
   const updateTheme = useUpdateTheme();
+  const deleteCategory = useDeleteCategory();
+  const updateCategory = useUpdateCategory();
   const { preferences, updatePreference } = useLocalPreferences();
+  const { theme: themeMode, setTheme: setThemeMode } = useTheme();
 
   const [editingTheme, setEditingTheme] = useState<string | null>(null);
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editColor, setEditColor] = useState('');
 
@@ -90,6 +101,27 @@ export default function SettingsPage() {
   const handleDeleteTheme = (themeId: string, title: string) => {
     if (confirm(`Delete "${title}"? This will also delete all subjects and tasks within it.`)) {
       deleteTheme.mutate(themeId);
+    }
+  };
+
+  const handleStartCategoryEdit = (categoryId: string, currentTitle: string, currentColor: string) => {
+    setEditingCategory(categoryId);
+    setEditTitle(currentTitle);
+    setEditColor(currentColor);
+  };
+
+  const handleSaveCategoryEdit = (categoryId: string) => {
+    if (editTitle.trim()) {
+      updateCategory.mutate({ id: categoryId, title: editTitle, color_hex: editColor });
+    }
+    setEditingCategory(null);
+    setEditTitle('');
+    setEditColor('');
+  };
+
+  const handleDeleteCategory = (categoryId: string, title: string) => {
+    if (confirm(`Supprimer "${title}" ? Les thèmes de cette catégorie deviendront non-catégorisés.`)) {
+      deleteCategory.mutate(categoryId);
     }
   };
 
@@ -127,9 +159,9 @@ export default function SettingsPage() {
               ].map((mode) => (
                 <Button
                   key={mode.value}
-                  variant={preferences.theme_mode === mode.value ? 'default' : 'outline'}
+                  variant={themeMode === mode.value ? 'default' : 'outline'}
                   className="flex-1"
-                  onClick={() => updatePreference('theme_mode', mode.value as 'light' | 'dark' | 'system')}
+                  onClick={() => setThemeMode(mode.value as 'light' | 'dark' | 'system')}
                 >
                   <mode.icon className="h-4 w-4 mr-2" />
                   {mode.label}
@@ -220,6 +252,103 @@ export default function SettingsPage() {
             <Label className="text-muted-foreground">User ID</Label>
             <p className="font-mono text-sm text-muted-foreground">{user?.id}</p>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Categories Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Layers className="h-5 w-5" />
+            Catégories
+          </CardTitle>
+          <CardDescription>Gérez vos catégories de projets</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!categories || categories.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Aucune catégorie. Créez-en une depuis la sidebar.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {categories.map((category) => (
+                <div
+                  key={category.id}
+                  className="flex items-center justify-between p-3 rounded-lg border"
+                >
+                  <div className="flex items-center gap-3 flex-1">
+                    {editingCategory === category.id ? (
+                      <>
+                        {/* Color picker */}
+                        <div className="flex gap-1">
+                          {THEME_COLORS.map((color) => (
+                            <button
+                              key={color}
+                              className={cn(
+                                'h-6 w-6 rounded-md transition-transform',
+                                editColor === color && 'ring-2 ring-offset-2 ring-primary scale-110'
+                              )}
+                              style={{ backgroundColor: color }}
+                              onClick={() => setEditColor(color)}
+                            />
+                          ))}
+                        </div>
+                        <Input
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveCategoryEdit(category.id);
+                            if (e.key === 'Escape') setEditingCategory(null);
+                          }}
+                          className="h-8 flex-1"
+                          autoFocus
+                        />
+                        <Button size="sm" onClick={() => handleSaveCategoryEdit(category.id)}>
+                          Save
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingCategory(null)}
+                        >
+                          Cancel
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <div
+                          className="h-6 w-6 rounded-md cursor-pointer hover:scale-110 transition-transform"
+                          style={{ backgroundColor: category.color_hex }}
+                          onClick={() =>
+                            handleStartCategoryEdit(category.id, category.title, category.color_hex)
+                          }
+                        />
+                        <span
+                          className="font-medium cursor-pointer hover:underline"
+                          onClick={() =>
+                            handleStartCategoryEdit(category.id, category.title, category.color_hex)
+                          }
+                        >
+                          {category.title}
+                        </span>
+                      </>
+                    )}
+                  </div>
+
+                  {editingCategory !== category.id && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      onClick={() => handleDeleteCategory(category.id, category.title)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -77,7 +77,7 @@ export function LabelPicker({ selectedLabels, onLabelsChange }: LabelPickerProps
     <div className="space-y-2">
       {/* Selected labels */}
       <div className="flex flex-wrap gap-1.5">
-        <AnimatePresence mode="popLayout">
+        <AnimatePresence mode="sync">
           {selectedLabels.map((label) => (
             <motion.div
               key={label.id}

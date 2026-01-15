@@ -1,7 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
+import { isToday, isTomorrow, isPast, addDays, startOfDay, format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import {
   DndContext,
   DragOverlay,
@@ -27,11 +30,26 @@ import {
   Circle,
   Hourglass,
   GripVertical,
+  CalendarDays,
+  Clock,
+  CalendarClock,
+  CalendarX,
+  Layers,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SkeletonCard } from '@/components/ui/skeleton-card';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { toast } from 'sonner';
 import {
   ThemeSubjectFilter,
   FilterState,
@@ -41,15 +59,18 @@ import { useKanbanTasks, useUpdateTask } from '@/hooks/use-tasks';
 import { TaskStatus, TaskWithRelations } from '@/types/database';
 import { cn } from '@/lib/utils';
 
+type ViewMode = 'all-status' | 'todo-by-date' | 'waiting' | 'done';
+
 interface KanbanColumn {
-  id: TaskStatus;
+  id: string;
   title: string;
   icon: React.ReactNode;
   color: string;
   bgColor: string;
 }
 
-const columns: KanbanColumn[] = [
+// Columns for status view (original)
+const statusColumns: KanbanColumn[] = [
   {
     id: 'todo',
     title: 'To Do',
@@ -73,8 +94,91 @@ const columns: KanbanColumn[] = [
   },
 ];
 
+// Columns for to-do by date view
+const dateColumns: KanbanColumn[] = [
+  {
+    id: 'overdue',
+    title: 'Overdue',
+    icon: <CalendarX className="h-4 w-4" />,
+    color: 'text-red-500',
+    bgColor: 'bg-red-500/10',
+  },
+  {
+    id: 'today',
+    title: 'Today',
+    icon: <CalendarDays className="h-4 w-4" />,
+    color: 'text-blue-500',
+    bgColor: 'bg-blue-500/10',
+  },
+  {
+    id: 'tomorrow',
+    title: 'Tomorrow',
+    icon: <CalendarClock className="h-4 w-4" />,
+    color: 'text-purple-500',
+    bgColor: 'bg-purple-500/10',
+  },
+  {
+    id: 'this-week',
+    title: 'This Week',
+    icon: <Clock className="h-4 w-4" />,
+    color: 'text-cyan-500',
+    bgColor: 'bg-cyan-500/10',
+  },
+  {
+    id: 'later',
+    title: 'Later',
+    icon: <CalendarDays className="h-4 w-4" />,
+    color: 'text-gray-500',
+    bgColor: 'bg-gray-500/10',
+  },
+  {
+    id: 'no-date',
+    title: 'No Date',
+    icon: <Circle className="h-4 w-4" />,
+    color: 'text-muted-foreground',
+    bgColor: 'bg-muted',
+  },
+];
+
+// Helper to categorize task by date
+function getDateCategory(doDate: string | null): string {
+  if (!doDate) return 'no-date';
+  const date = startOfDay(new Date(doDate));
+  const today = startOfDay(new Date());
+  if (isPast(date) && !isToday(date)) return 'overdue';
+  if (isToday(date)) return 'today';
+  if (isTomorrow(date)) return 'tomorrow';
+  const nextWeek = addDays(today, 7);
+  if (date <= nextWeek) return 'this-week';
+  return 'later';
+}
+
+// View mode options
+const viewModes = [
+  { id: 'all-status' as ViewMode, label: 'All Status', icon: <Layers className="h-4 w-4" /> },
+  { id: 'todo-by-date' as ViewMode, label: 'To Do', icon: <CalendarDays className="h-4 w-4" /> },
+  { id: 'waiting' as ViewMode, label: 'Waiting', icon: <Hourglass className="h-4 w-4" /> },
+  { id: 'done' as ViewMode, label: 'Done', icon: <CheckCircle className="h-4 w-4" /> },
+];
+
+// Build hierarchy label: Category › Theme › Subject
+function getHierarchyLabel(task: TaskWithRelations): string | null {
+  const parts: string[] = [];
+  if (task.category?.title) parts.push(task.category.title);
+  if (task.theme?.title) parts.push(task.theme.title);
+  if (task.subject?.title) parts.push(task.subject.title);
+  return parts.length > 0 ? parts.join(' › ') : null;
+}
+
+// Lazy load TaskFocusDialog
+const TaskFocusDialog = dynamic(
+  () => import('@/components/tasks/task-focus-dialog').then((m) => m.TaskFocusDialog),
+  { ssr: false }
+);
+
 // Sortable Task Card with better visuals
 function SortableTaskCard({ task }: { task: TaskWithRelations }) {
+  const [focusOpen, setFocusOpen] = useState(false);
   const {
     attributes,
     listeners,
@@ -89,85 +193,109 @@ function SortableTaskCard({ task }: { task: TaskWithRelations }) {
     transition,
   };
 
+  const hierarchyLabel = getHierarchyLabel(task);
+
+  // Get stable color for the indicator (use category color if available, else theme)
+  const indicatorColor = task.category?.color_hex || task.theme?.color_hex;
+
+  const handleClick = (e: React.MouseEvent) => {
+    // Only open modal if not dragging (distance < 5px)
+    if (!isDragging) {
+      e.stopPropagation();
+      setFocusOpen(true);
+    }
+  };
+
   return (
-    <motion.div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: isDragging ? 0.5 : 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      className={cn(
-        'group p-3 rounded-xl border bg-card cursor-grab active:cursor-grabbing',
-        'hover:shadow-md hover:border-primary/20 transition-all duration-200',
-        isDragging && 'shadow-xl ring-2 ring-primary/20'
-      )}
-    >
-      <div className="flex items-start gap-2">
-        {/* Drag handle */}
-        <div
-          {...listeners}
-          className="mt-0.5 opacity-0 group-hover:opacity-50 hover:opacity-100 transition-opacity cursor-grab"
-        >
-          <GripVertical className="h-4 w-4 text-muted-foreground" />
-        </div>
-
-        {/* Theme indicator */}
-        {task.theme && (
-          <div
-            className="h-2.5 w-2.5 rounded-full mt-1.5 flex-shrink-0"
-            style={{ backgroundColor: task.theme.color_hex }}
-          />
+    <>
+      <motion.div
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        {...listeners}
+        onClick={handleClick}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: isDragging ? 0.5 : 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className={cn(
+          'group p-3 rounded-xl border bg-card cursor-grab active:cursor-grabbing',
+          'hover:shadow-md hover:border-primary/20 transition-all duration-200',
+          isDragging && 'shadow-xl ring-2 ring-primary/20'
         )}
+      >
+        <div className="flex items-start gap-2">
+          {/* Drag indicator */}
+          <div className="mt-0.5 opacity-0 group-hover:opacity-50 transition-opacity">
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+          </div>
 
-        <div className="flex-1 min-w-0">
-          <p
-            className={cn(
-              'text-sm font-medium leading-snug',
-              task.status === 'done' && 'line-through text-muted-foreground'
-            )}
-          >
-            {task.title}
-          </p>
-
-          {task.subject && (
-            <p className="text-xs text-muted-foreground mt-1 truncate">
-              {task.subject.title}
-            </p>
+          {/* Theme/Category indicator - use stable color */}
+          {indicatorColor && (
+            <div
+              className="h-2.5 w-2.5 rounded-full mt-1.5 flex-shrink-0"
+              style={{ backgroundColor: indicatorColor }}
+            />
           )}
 
-          <div className="flex flex-wrap items-center gap-1.5 mt-2">
-            {task.do_date && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                {new Date(task.do_date).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                })}
-              </span>
+          <div className="flex-1 min-w-0">
+            <p
+              className={cn(
+                'text-sm font-medium leading-snug',
+                task.status === 'done' && 'line-through text-muted-foreground'
+              )}
+            >
+              {task.title}
+            </p>
+
+            {/* Hierarchy: Category › Theme › Subject */}
+            {hierarchyLabel && (
+              <p className="text-xs text-muted-foreground mt-1 truncate">
+                {hierarchyLabel}
+              </p>
             )}
 
-            {task.status === 'waiting_for' && task.waiting_for_note && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 truncate max-w-[120px]">
-                {task.waiting_for_note}
-              </span>
-            )}
+            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              {task.do_date && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                  {new Date(task.do_date).toLocaleDateString('fr-FR', {
+                    day: 'numeric',
+                    month: 'short',
+                  })}
+                </span>
+              )}
 
-            {(task.priority ?? 0) > 0 && (
-              <span
-                className={cn(
-                  'text-[10px] px-1.5 py-0.5 rounded font-medium',
-                  task.priority === 2
-                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                    : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                )}
-              >
-                {task.priority === 2 ? 'High' : 'Medium'}
-              </span>
-            )}
+              {task.status === 'waiting_for' && task.waiting_for_note && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 truncate max-w-[120px]">
+                  {task.waiting_for_note}
+                </span>
+              )}
+
+              {(task.priority ?? 0) > 0 && (
+                <span
+                  className={cn(
+                    'text-[10px] px-1.5 py-0.5 rounded font-medium',
+                    task.priority === 2
+                      ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                      : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                  )}
+                >
+                  {task.priority === 2 ? 'High' : 'Medium'}
+                </span>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-    </motion.div>
+      </motion.div>
+
+      {/* Task Focus Dialog */}
+      {focusOpen && (
+        <TaskFocusDialog
+          task={task}
+          open={focusOpen}
+          onOpenChange={setFocusOpen}
+        />
+      )}
+    </>
   );
 }
 
@@ -221,7 +349,7 @@ function DroppableColumn({
               strategy={verticalListSortingStrategy}
             >
               <div className="space-y-2 pr-2 min-h-[100px] pb-4">
-                <AnimatePresence mode="popLayout">
+                <AnimatePresence mode="sync">
                   {tasks.length === 0 ? (
                     <motion.div
                       initial={{ opacity: 0 }}
@@ -249,14 +377,27 @@ function DroppableColumn({
   );
 }
 
+// Date picker dialog for date column changes
+interface DatePickerState {
+  isOpen: boolean;
+  taskId: string | null;
+  targetColumn: string | null;
+}
+
 export default function KanbanPage() {
   const [activeTask, setActiveTask] = useState<TaskWithRelations | null>(null);
-  const [filter, setFilter] = useState<FilterState>({ themeIds: [], subjectIds: [] });
+  const [filter, setFilter] = useState<FilterState>({ categoryIds: [], themeIds: [], subjectIds: [] });
+  const [viewMode, setViewMode] = useState<ViewMode>('todo-by-date');
+  const [datePicker, setDatePicker] = useState<DatePickerState>({
+    isOpen: false,
+    taskId: null,
+    targetColumn: null,
+  });
 
   const { data: allTasks = [], isLoading } = useKanbanTasks();
   const updateTask = useUpdateTask();
 
-  const hasFilters = filter.themeIds.length > 0 || filter.subjectIds.length > 0;
+  const hasFilters = (filter.categoryIds?.length || 0) > 0 || (filter.themeIds?.length || 0) > 0 || (filter.subjectIds?.length || 0) > 0;
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -271,18 +412,128 @@ export default function KanbanPage() {
     return filterTasksByThemeAndSubject(allTasks, filter);
   }, [allTasks, filter]);
 
-  const tasksByStatus = useMemo(() => {
-    return {
-      todo: filteredTasks.filter((t) => t.status === 'todo'),
-      waiting_for: filteredTasks.filter((t) => t.status === 'waiting_for'),
-      done: filteredTasks.filter((t) => t.status === 'done'),
+  // Get columns and tasks based on view mode
+  const { columns, tasksByColumn, visibleTasks } = useMemo(() => {
+    let cols: KanbanColumn[];
+    const byColumn: Record<string, TaskWithRelations[]> = {};
+    let tasks: TaskWithRelations[];
+
+    // Sort tasks by date (chronological), then by priority
+    const sortByDateAndPriority = (taskList: TaskWithRelations[]) => {
+      return [...taskList].sort((a, b) => {
+        // First sort by date (ascending, nulls last)
+        if (a.do_date && b.do_date) {
+          const dateCompare = a.do_date.localeCompare(b.do_date);
+          if (dateCompare !== 0) return dateCompare;
+        }
+        if (a.do_date && !b.do_date) return -1;
+        if (!a.do_date && b.do_date) return 1;
+        // Then by priority (descending)
+        return (b.priority ?? 0) - (a.priority ?? 0);
+      });
     };
-  }, [filteredTasks]);
+
+    switch (viewMode) {
+      case 'all-status':
+        cols = statusColumns;
+        tasks = filteredTasks;
+        cols.forEach((col) => {
+          byColumn[col.id] = sortByDateAndPriority(tasks.filter((t) => t.status === col.id));
+        });
+        break;
+
+      case 'todo-by-date':
+        cols = dateColumns;
+        tasks = filteredTasks.filter((t) => t.status === 'todo');
+        cols.forEach((col) => {
+          byColumn[col.id] = sortByDateAndPriority(tasks.filter((t) => getDateCategory(t.do_date) === col.id));
+        });
+        break;
+
+      case 'waiting':
+        cols = [{
+          id: 'waiting_for',
+          title: 'Waiting For',
+          icon: <Hourglass className="h-4 w-4" />,
+          color: 'text-amber-500',
+          bgColor: 'bg-amber-500/10',
+        }];
+        tasks = filteredTasks.filter((t) => t.status === 'waiting_for');
+        byColumn['waiting_for'] = sortByDateAndPriority(tasks);
+        break;
+
+      case 'done':
+        cols = [{
+          id: 'done',
+          title: 'Done',
+          icon: <CheckCircle className="h-4 w-4" />,
+          color: 'text-green-500',
+          bgColor: 'bg-green-500/10',
+        }];
+        tasks = filteredTasks.filter((t) => t.status === 'done');
+        byColumn['done'] = sortByDateAndPriority(tasks);
+        break;
+
+      default:
+        cols = statusColumns;
+        tasks = filteredTasks;
+        cols.forEach((col) => {
+          byColumn[col.id] = sortByDateAndPriority(tasks.filter((t) => t.status === col.id));
+        });
+    }
+
+    return { columns: cols, tasksByColumn: byColumn, visibleTasks: tasks };
+  }, [filteredTasks, viewMode]);
 
   const handleDragStart = (event: DragStartEvent) => {
-    const task = filteredTasks.find((t) => t.id === event.active.id);
+    const task = visibleTasks.find((t) => t.id === event.active.id);
     if (task) setActiveTask(task);
   };
+
+  // Get the target date for a column (for quick moves like today/tomorrow)
+  const getDateForColumn = useCallback((columnId: string): Date | null => {
+    const today = startOfDay(new Date());
+    switch (columnId) {
+      case 'overdue':
+      case 'today':
+        return today;
+      case 'tomorrow':
+        return addDays(today, 1);
+      default:
+        return null; // this-week, later, no-date need picker
+    }
+  }, []);
+
+  // Handle date selection from the picker dialog
+  const handleDateSelect = useCallback((date: Date | undefined) => {
+    if (date && datePicker.taskId) {
+      const formattedDate = format(date, 'yyyy-MM-dd');
+      updateTask.mutate(
+        { id: datePicker.taskId, do_date: formattedDate },
+        {
+          onSuccess: () => {
+            toast.success(`Date mise à jour: ${format(date, 'EEEE d MMMM', { locale: fr })}`);
+          },
+        }
+      );
+    }
+    setDatePicker({ isOpen: false, taskId: null, targetColumn: null });
+  }, [datePicker.taskId, updateTask]);
+
+  // Clear date when moving to "no-date" column
+  const handleClearDate = useCallback(() => {
+    if (datePicker.taskId) {
+      updateTask.mutate(
+        { id: datePicker.taskId, do_date: null },
+        {
+          onSuccess: () => {
+            toast.success('Date supprimée');
+          },
+        }
+      );
+    }
+    setDatePicker({ isOpen: false, taskId: null, targetColumn: null });
+  }, [datePicker.taskId, updateTask]);
 
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveTask(null);
@@ -291,24 +542,80 @@ export default function KanbanPage() {
     if (!over) return;
 
     const taskId = active.id as string;
-    const task = filteredTasks.find((t) => t.id === taskId);
+    const task = visibleTasks.find((t) => t.id === taskId);
     if (!task) return;
 
-    let targetStatus: TaskStatus | null = null;
+    // Handle status changes in 'all-status' mode
+    if (viewMode === 'all-status') {
+      let targetStatus: TaskStatus | null = null;
 
-    if (['todo', 'waiting_for', 'done'].includes(over.id as string)) {
-      targetStatus = over.id as TaskStatus;
-    } else {
-      const targetTask = filteredTasks.find((t) => t.id === over.id);
-      if (targetTask) targetStatus = targetTask.status;
+      if (['todo', 'waiting_for', 'done'].includes(over.id as string)) {
+        targetStatus = over.id as TaskStatus;
+      } else {
+        const targetTask = visibleTasks.find((t) => t.id === over.id);
+        if (targetTask) targetStatus = targetTask.status;
+      }
+
+      if (targetStatus && targetStatus !== task.status) {
+        updateTask.mutate({
+          id: taskId,
+          status: targetStatus,
+          waiting_for_note: targetStatus === 'waiting_for' ? 'Pending' : null,
+        });
+      }
+      return;
     }
 
-    if (targetStatus && targetStatus !== task.status) {
-      updateTask.mutate({
-        id: taskId,
-        status: targetStatus,
-        waiting_for_note: targetStatus === 'waiting_for' ? 'Pending' : null,
-      });
+    // Handle date changes in 'todo-by-date' mode
+    if (viewMode === 'todo-by-date') {
+      // Determine target column
+      let targetColumnId = over.id as string;
+
+      // If dropped on a task, find its column
+      if (!dateColumns.some((col) => col.id === targetColumnId)) {
+        const targetTask = visibleTasks.find((t) => t.id === over.id);
+        if (targetTask) {
+          targetColumnId = getDateCategory(targetTask.do_date);
+        }
+      }
+
+      // Get current column of the task
+      const currentColumnId = getDateCategory(task.do_date);
+
+      // Don't do anything if same column
+      if (targetColumnId === currentColumnId) return;
+
+      // Check if we can set date directly (today, tomorrow) or need picker
+      const quickDate = getDateForColumn(targetColumnId);
+
+      if (quickDate) {
+        // Direct update for today/tomorrow/overdue
+        updateTask.mutate(
+          { id: taskId, do_date: format(quickDate, 'yyyy-MM-dd') },
+          {
+            onSuccess: () => {
+              toast.success(`Date: ${format(quickDate, 'EEEE d MMMM', { locale: fr })}`);
+            },
+          }
+        );
+      } else if (targetColumnId === 'no-date') {
+        // Moving to no-date clears the date
+        updateTask.mutate(
+          { id: taskId, do_date: null },
+          {
+            onSuccess: () => {
+              toast.success('Date supprimée');
+            },
+          }
+        );
+      } else {
+        // For this-week and later, show date picker
+        setDatePicker({
+          isOpen: true,
+          taskId: taskId,
+          targetColumn: targetColumnId,
+        });
+      }
     }
   };
 
@@ -359,7 +666,7 @@ export default function KanbanPage() {
             <div>
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Kanban</h1>
               <p className="text-sm text-muted-foreground">
-                {filteredTasks.length} tasks {hasFilters && '(filtered)'}
+                {visibleTasks.length} tasks {hasFilters && '(filtered)'}
               </p>
             </div>
           </div>
@@ -372,6 +679,22 @@ export default function KanbanPage() {
           >
             <ThemeSubjectFilter value={filter} onChange={setFilter} />
           </motion.div>
+        </div>
+
+        {/* View Mode Selector */}
+        <div className="flex items-center gap-2 justify-center">
+          {viewModes.map((mode) => (
+            <Button
+              key={mode.id}
+              variant={viewMode === mode.id ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode(mode.id)}
+              className="gap-2"
+            >
+              {mode.icon}
+              {mode.label}
+            </Button>
+          ))}
         </div>
       </motion.div>
 
@@ -394,7 +717,7 @@ export default function KanbanPage() {
               >
                 <DroppableColumn
                   column={column}
-                  tasks={tasksByStatus[column.id]}
+                  tasks={tasksByColumn[column.id] || []}
                 />
               </motion.div>
             ))}
@@ -408,17 +731,18 @@ export default function KanbanPage() {
                 className="p-3 rounded-xl border bg-card shadow-2xl w-[300px]"
               >
                 <div className="flex items-start gap-2">
-                  {activeTask.theme && (
+                  {/* Use same color logic as SortableTaskCard: category > theme */}
+                  {(activeTask.category?.color_hex || activeTask.theme?.color_hex) && (
                     <div
                       className="h-2.5 w-2.5 rounded-full mt-1.5 flex-shrink-0"
-                      style={{ backgroundColor: activeTask.theme.color_hex }}
+                      style={{ backgroundColor: activeTask.category?.color_hex || activeTask.theme?.color_hex }}
                     />
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">{activeTask.title}</p>
-                    {activeTask.subject && (
+                    {getHierarchyLabel(activeTask) && (
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {activeTask.subject.title}
+                        {getHierarchyLabel(activeTask)}
                       </p>
                     )}
                   </div>
@@ -428,6 +752,45 @@ export default function KanbanPage() {
           </DragOverlay>
         </DndContext>
       </div>
+
+      {/* Date Picker Dialog */}
+      <Dialog
+        open={datePicker.isOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDatePicker({ isOpen: false, taskId: null, targetColumn: null });
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[350px]">
+          <DialogHeader>
+            <DialogTitle>Choisir une date</DialogTitle>
+            <DialogDescription>
+              {datePicker.targetColumn === 'this-week'
+                ? 'Sélectionnez une date cette semaine'
+                : 'Sélectionnez une date'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-4">
+            <Calendar
+              mode="single"
+              selected={undefined}
+              onSelect={handleDateSelect}
+              disabled={(date) => date < startOfDay(new Date())}
+              initialFocus
+            />
+            <div className="flex gap-2 w-full">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setDatePicker({ isOpen: false, taskId: null, targetColumn: null })}
+              >
+                Annuler
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
