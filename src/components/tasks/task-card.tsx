@@ -32,7 +32,7 @@ import { useCompleteTask, useUpdateTask, useDeleteTask } from '@/hooks/use-tasks
 import { SnoozePopover } from './snooze-popover';
 import { EditTaskDialog } from './edit-task-dialog';
 import { WaitingForDialog } from './waiting-for-dialog';
-import { PriorityBadge, cyclePriority } from '@/components/ui/priority-badge';
+import { PriorityBadge } from '@/components/ui/priority-badge';
 import { SnoozeBadge } from '@/components/ui/snooze-badge';
 import { TaskFocusDialog } from './task-focus-dialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -89,12 +89,6 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
     }
   }, [task.id, task.status, completeTask, updateTask]);
 
-  const handlePriorityChange = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    const currentPriority = (task.priority ?? 0) as PriorityLevel;
-    const newPriority = cyclePriority(currentPriority);
-    updateTask.mutate({ id: task.id, priority: newPriority });
-  }, [task.id, task.priority, updateTask]);
 
   const confirmDelete = useCallback(() => {
     deleteTask.mutate(task.id);
@@ -304,7 +298,6 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
                   {/* Priority badge */}
                   <PriorityBadge
                     priority={(task.priority ?? 0) as PriorityLevel}
-                    onClick={handlePriorityChange}
                   />
 
                   {/* Snooze counter */}

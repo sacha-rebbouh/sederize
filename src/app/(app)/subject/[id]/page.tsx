@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -39,7 +39,7 @@ import { useSubjectTasks, useCreateTask } from '@/hooks/use-tasks';
 import { parseTaskInput } from '@/lib/date-parser';
 
 interface SubjectPageProps {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
 const containerVariants = {
@@ -56,15 +56,14 @@ const itemVariants = {
 };
 
 export default function SubjectPage({ params }: SubjectPageProps) {
-  const resolvedParams = use(params);
   const router = useRouter();
   const [newTask, setNewTask] = useState('');
   const [scratchpad, setScratchpad] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { data: subject, isLoading: subjectLoading } = useSubject(resolvedParams.id);
-  const { data: tasks } = useSubjectTasks(resolvedParams.id);
+  const { data: subject, isLoading: subjectLoading } = useSubject(params.id);
+  const { data: tasks } = useSubjectTasks(params.id);
   const createTask = useCreateTask();
   const updateSubject = useUpdateSubject();
   const deleteSubject = useDeleteSubject();
@@ -102,7 +101,7 @@ export default function SubjectPage({ params }: SubjectPageProps) {
       await createTask.mutateAsync({
         title: parsed.title || newTask,
         do_date: parsed.date ? format(parsed.date, 'yyyy-MM-dd') : null,
-        subject_id: resolvedParams.id,
+        subject_id: params.id,
       });
 
       toast.success('Task added', {

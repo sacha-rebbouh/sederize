@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, memo } from 'react';
 import { ChevronRight, Inbox, Check, X, Layers, Palette, Folder } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,7 +30,7 @@ interface WaterfallPickerProps {
   className?: string;
 }
 
-export function WaterfallPicker({ value, onChange, className }: WaterfallPickerProps) {
+export const WaterfallPicker = memo(function WaterfallPicker({ value, onChange, className }: WaterfallPickerProps) {
   const [open, setOpen] = useState(false);
 
   // Local state for selection before validation
@@ -217,12 +217,10 @@ export function WaterfallPicker({ value, onChange, className }: WaterfallPickerP
         <ChevronRight className="ml-2 h-4 w-4 shrink-0 opacity-50" />
       </Button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={setOpen} modal={false}>
         <DialogContent
           className="sm:max-w-4xl max-h-[85vh] flex flex-col p-0"
           aria-describedby={undefined}
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onInteractOutside={(e) => e.preventDefault()}
         >
           <DialogHeader className="px-6 pt-6 pb-4 border-b">
             <DialogTitle>Assigner la tâche</DialogTitle>
@@ -389,4 +387,4 @@ export function WaterfallPicker({ value, onChange, className }: WaterfallPickerP
       </Dialog>
     </>
   );
-}
+});

@@ -1,5 +1,114 @@
 # Changes Log - Sederize
 
+## 2026-01-15 - v0.4.21 - Fix Chevron Double-Click & Date Parser "a 10h"
+
+### Fichiers modifiés
+- `src/components/layout/sidebar.tsx` - Fix Collapsible onOpenChange handlers
+- `src/lib/date-parser.ts` - Fix parsing "x a 10h" pattern
+
+### Corrections
+
+#### 1. Chevron double-click (sidebar)
+- **Problème** : Il fallait cliquer deux fois sur les chevrons des catégories/thèmes pour les ouvrir/fermer
+- **Cause** : Le `onOpenChange` de Radix Collapsible reçoit un booléen (le nouvel état), mais le code appelait une fonction `toggleTheme()` qui ignorait ce paramètre et toggleait l'état précédent. Cela créait un conflit de synchronisation avec Radix.
+- **Solution** : Remplacement de `toggleCategory`/`toggleTheme` par `setCategoryOpen`/`setThemeOpen` qui utilisent directement le booléen passé par Radix.
+
+#### 2. Parsing "x a 10h"
+- **Problème** : "x a 10h" créait une tâche "x a" sans date ni heure
+- **Causes** :
+  1. La regex ne capturait pas "a " (sans accent) avant l'heure
+  2. Quand une heure explicite (10h) était parsée sans date, le parser ne définissait pas la date d'aujourd'hui
+- **Solution** :
+  1. Regex mise à jour : `/(?:(?:^|\s)[àa]\s*)?(\d{1,2})h(\d{2})?\b/i` (capture "a" et "à" avec ou sans espace)
+  2. Nettoyage du titre avec plusieurs regex pour gérer tous les cas : " a 10h", " a10h", "10h"
+  3. Ajout flag `explicitTimeFound` pour toujours mettre la date à aujourd'hui quand une heure explicite est utilisée sans date
+
+#### 3. Label matching trop permissif
+- **Problème** : "X a 10h" matchait le label "facture a payer" parce que "facture" contient "a"
+- **Cause** : La logique `labelWord.includes(titleWord)` matchait des mots longs contenant une seule lettre du titre
+- **Solution** :
+  1. Filtrer les mots courts (< 3 chars) du titre ET du label
+  2. Exiger des correspondances substantielles (3+ chars pour substring, 4+ pour inclusion inverse)
+
+### Exemples corrigés
+| Input | Avant | Après |
+|-------|-------|-------|
+| x a 10h | titre: "x a", date: null, time: null, label: "facture a payer" ❌ | titre: "x", date: aujourd'hui, time: "10:00", no label ✓ |
+| test à 14h30 | titre: "test", date: null, time: "14:30" | titre: "test", date: aujourd'hui, time: "14:30" |
+| demain a 9h call | - | titre: "call", date: demain, time: "09:00" |
+
+---
+
+## 2026-01-15 - v0.4.20 - Fix subject page crash (use() React 19 API)
+
+### Fichiers modifiés
+- `src/app/(app)/subject/[id]/page.tsx` - Suppression de `use()` pour les params
+
+### Correction
+- **Erreur "An unsupported type was passed to use()"** - Le code utilisait `use(params)` qui est une API React 19 pour unwrap les Promises. Avec Next.js 14 et React 18, les params sont passés directement comme un objet. Solution : utiliser `params.id` directement au lieu de `use(params).id`.
+
+---
+
+## 2026-01-15 - v0.4.19 - Fix sign out not working
+
+### Fichiers modifiés
+- `src/providers/auth-provider.tsx` - Ajout redirection vers /login après signOut
+
+### Correction
+- **Sign out ne fonctionnait pas** - `supabase.auth.signOut()` était appelé mais aucune redirection ne se faisait. Le middleware redirige vers /login seulement sur nouvelle requête. Solution : ajout de `router.push('/login')` et `router.refresh()` après le signOut.
+
+---
+
+## 2026-01-15 - v0.4.18 - Fix priority sync bug
+
+### Fichiers modifiés
+- `src/components/tasks/task-card.tsx` - Suppression du changement de priorité par clic direct
+
+### Correction
+- **Désynchronisation priorité entre TaskCard et TaskFocusDialog** - Quand l'utilisateur changeait la priorité en cliquant dessus directement sur la carte, le front se mettait à jour mais le modal affichait l'ancienne valeur. Cause : le `TaskFocusDialog` n'actualise son état local que quand le `task.id` change, pas quand `task.priority` change (pour éviter les resets pendant l'édition). Solution : suppression du clic direct sur la priorité - l'utilisateur peut toujours la changer via "Edit task" ou le modal.
+
+---
+
+## 2026-01-15 - v0.4.17 - React Best Practices Refactoring
+
+### Fichiers modifiés
+- `src/components/layout/app-shell.tsx` - Ajout `useCallback` sur tous les handlers passés en props
+- `src/app/(app)/page.tsx` - Ajout `useCallback` sur les handlers (filters, navigation, assign)
+- `src/components/tasks/waterfall-picker.tsx` - Ajout `React.memo` pour éviter re-renders inutiles
+
+### Optimisations appliquées
+
+#### 1. useCallback sur les handlers (Re-renders)
+Les handlers passés en props aux composants enfants sont maintenant wrappés dans `useCallback` pour éviter les re-renders :
+- `app-shell.tsx` : 12 handlers optimisés (handleSidebarCollapse, handleCreateTheme, handleDelete*, handleEdit*, etc.)
+- `page.tsx (Daily Brief)` : 7 handlers optimisés (handleCategoryChange, clearFilters, goToPreviousDay, etc.)
+
+#### 2. React.memo sur WaterfallPicker
+Le composant `WaterfallPicker` est maintenant mémorisé pour éviter les re-renders quand les props `value` et `onChange` n'ont pas changé.
+
+### Vérifications effectuées
+- ✅ AnimatePresence : Tous utilisent `mode="sync"` ou `mode="wait"` (pas de `popLayout`)
+- ✅ Query invalidation : Pattern granulaire déjà en place via `queryKeys` factory
+- ✅ Dynamic imports : Déjà utilisés pour composants lourds (QuickAdd, CommandPalette, dialogs)
+- ✅ useMemo : Déjà en place pour calculs coûteux (filteredThemes, groupedByCategory, etc.)
+
+### Impact performance
+- Réduction des re-renders sur la Sidebar et ses enfants
+- Réduction des re-renders sur le Daily Brief lors des changements de filtres
+- WaterfallPicker ne re-render plus inutilement
+
+---
+
+## 2026-01-15 - v0.4.16 - Fix WaterfallPicker flash in EditTaskDialog
+
+### Fichiers modifiés
+- `src/components/tasks/waterfall-picker.tsx` - Ajout `modal={false}` sur le Dialog interne
+
+### Correction
+- **WaterfallPicker s'ouvrait et se fermait immédiatement** - Le Dialog du WaterfallPicker entrait en conflit avec le Dialog parent (EditTaskDialog). Radix UI ne gère pas bien les Dialogs modaux imbriqués. Solution: `modal={false}` sur le Dialog interne pour éviter le conflit de focus trap.
+
+---
+
 ## 2026-01-15 - v0.4.15 - Smart Parser: Descriptive Keywords & Name Detection
 
 ### Fichiers modifiés

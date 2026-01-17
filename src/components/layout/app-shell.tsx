@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { Sidebar } from './sidebar';
@@ -77,52 +77,52 @@ export function AppShell({ children }: AppShellProps) {
   }, []);
 
   // Save sidebar state to localStorage
-  const handleSidebarCollapse = (collapsed: boolean) => {
+  const handleSidebarCollapse = useCallback((collapsed: boolean) => {
     setSidebarCollapsed(collapsed);
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed));
-  };
+  }, []);
 
-  const handleCreateTheme = (categoryId?: string) => {
+  const handleCreateTheme = useCallback((categoryId?: string) => {
     setSelectedCategoryId(categoryId ?? null);
     setCreateThemeOpen(true);
-  };
+  }, []);
 
-  const handleCreateSubject = (themeId: string) => {
+  const handleCreateSubject = useCallback((themeId: string) => {
     setSelectedThemeId(themeId);
     setCreateSubjectOpen(true);
-  };
+  }, []);
 
-  const handleCreateSubjectFromPalette = () => {
+  const handleCreateSubjectFromPalette = useCallback(() => {
     // Open subject dialog without preselected theme
     setSelectedThemeId(null);
     setCreateSubjectOpen(true);
-  };
+  }, []);
 
-  const handleDeleteCategory = (id: string, title: string) => {
+  const handleDeleteCategory = useCallback((id: string, title: string) => {
     setDeleteDialog({ type: 'category', id, title });
-  };
+  }, []);
 
-  const handleDeleteTheme = (id: string, title: string) => {
+  const handleDeleteTheme = useCallback((id: string, title: string) => {
     setDeleteDialog({ type: 'theme', id, title });
-  };
+  }, []);
 
-  const handleDeleteSubject = (id: string, title: string) => {
+  const handleDeleteSubject = useCallback((id: string, title: string) => {
     setDeleteDialog({ type: 'subject', id, title });
-  };
+  }, []);
 
-  const handleEditCategory = (id: string, title: string, color: string) => {
+  const handleEditCategory = useCallback((id: string, title: string, color: string) => {
     setEditDialog({ type: 'category', id, title, color });
-  };
+  }, []);
 
-  const handleEditTheme = (id: string, title: string, color: string) => {
+  const handleEditTheme = useCallback((id: string, title: string, color: string) => {
     setEditDialog({ type: 'theme', id, title, color });
-  };
+  }, []);
 
-  const handleEditSubject = (id: string, title: string) => {
+  const handleEditSubject = useCallback((id: string, title: string) => {
     setEditDialog({ type: 'subject', id, title });
-  };
+  }, []);
 
-  const handleSaveEdit = (title: string, color?: string) => {
+  const handleSaveEdit = useCallback((title: string, color?: string) => {
     if (!editDialog) return;
 
     const { type, id } = editDialog;
@@ -158,9 +158,9 @@ export function AppShell({ children }: AppShellProps) {
         }
       );
     }
-  };
+  }, [editDialog, updateCategory, updateTheme, updateSubject]);
 
-  const confirmDelete = () => {
+  const confirmDelete = useCallback(() => {
     if (!deleteDialog) return;
 
     const { type, id, title } = deleteDialog;
@@ -180,7 +180,7 @@ export function AppShell({ children }: AppShellProps) {
     }
 
     setDeleteDialog(null);
-  };
+  }, [deleteDialog, deleteCategory, deleteTheme, deleteSubject]);
 
   return (
     <TooltipProvider delayDuration={0}>

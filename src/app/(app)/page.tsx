@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, isBefore, startOfDay, addDays, subDays, isToday, isTomorrow, isYesterday } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -114,29 +114,29 @@ export default function DailyBriefPage() {
   }, [themes, categoryFilter]);
 
   // Reset dependent filters when parent changes
-  const handleCategoryChange = (value: string) => {
+  const handleCategoryChange = useCallback((value: string) => {
     setCategoryFilter(value);
     setThemeFilter('all');
-  };
+  }, []);
 
   const hasActiveFilters = categoryFilter !== 'all' || themeFilter !== 'all' || priorityFilter !== 'all';
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setCategoryFilter('all');
     setThemeFilter('all');
     setPriorityFilter('all');
-  };
+  }, []);
 
-  const goToPreviousDay = () => setSelectedDate(d => subDays(d, 1));
-  const goToNextDay = () => setSelectedDate(d => addDays(d, 1));
-  const goToToday = () => setSelectedDate(new Date());
+  const goToPreviousDay = useCallback(() => setSelectedDate(d => subDays(d, 1)), []);
+  const goToNextDay = useCallback(() => setSelectedDate(d => addDays(d, 1)), []);
+  const goToToday = useCallback(() => setSelectedDate(new Date()), []);
 
-  const handleOpenAssignDialog = (task: Task) => {
+  const handleOpenAssignDialog = useCallback((task: Task) => {
     setSelectedTask(task);
     setAssignDialogOpen(true);
-  };
+  }, []);
 
-  const handleAssign = (selection: WaterfallSelection) => {
+  const handleAssign = useCallback((selection: WaterfallSelection) => {
     if (!selectedTask) return;
 
     // Build assignment label for toast
@@ -159,7 +159,7 @@ export default function DailyBriefPage() {
         },
       }
     );
-  };
+  }, [selectedTask, updateTask]);
 
   const { overdueTasks, groupedByCategory } = useMemo(() => {
     if (!tasks) return { overdueTasks: [], groupedByCategory: [] };

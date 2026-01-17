@@ -1001,8 +1001,10 @@ export function parseTaskInput(input: string): ParsedTask {
   }
 
   // Parse EXPLICIT time format FIRST (21h, 14h30, etc.) - takes priority over keywords
-  const frenchTimeRegex = /(?:à\s*)?(\d{1,2})h(\d{2})?\b/i;
+  // Simple regex to match French time format: captures hours and optional minutes
+  const frenchTimeRegex = /(\d{1,2})h(\d{2})?\b/i;
   const frenchTimeMatch = lowerInput.match(frenchTimeRegex);
+  let explicitTimeFound = false;
 
   if (frenchTimeMatch) {
     const hours = parseInt(frenchTimeMatch[1]);
@@ -1010,7 +1012,10 @@ export function parseTaskInput(input: string): ParsedTask {
 
     if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
       time = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-      title = title.replace(new RegExp(frenchTimeRegex.source, 'i'), '').trim();
+      // Remove the time pattern and clean up "a" or "à" prefix if present
+      title = title.replace(/\s+[àa]\s*\d{1,2}h\d{0,2}\b/i, '').trim();
+      title = title.replace(/\s*\d{1,2}h\d{0,2}\b/i, '').trim();
+      explicitTimeFound = true;
     }
   }
 
@@ -1415,17 +1420,23 @@ export function parseTaskInput(input: string): ParsedTask {
     }
   }
 
-  // 13. If a time keyword was found but NO date keyword, default to today
+  // 13. If a time was found but NO date keyword, default to today
   // This handles cases like "au dej call" → today at 12:30
+  // Also handles explicit time like "x a 10h" → today at 10:00
   // But "demain au dej call" → tomorrow at 12:30 (date already set from "demain")
   if (!date && time) {
-    // Check if input contained a time-only keyword (not an explicit time like "14h30")
-    const sortedTimeKeywords = Array.from(timeOnlyKeywords).sort((a, b) => b.length - a.length);
-    for (const keyword of sortedTimeKeywords) {
-      const regex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-      if (regex.test(lowerInput)) {
-        date = new Date(); // Today
-        break;
+    // If an explicit time format was used (like "10h", "14h30"), always default to today
+    if (explicitTimeFound) {
+      date = new Date(); // Today
+    } else {
+      // Check if input contained a time-only keyword (like "midi", "soir", etc.)
+      const sortedTimeKeywords = Array.from(timeOnlyKeywords).sort((a, b) => b.length - a.length);
+      for (const keyword of sortedTimeKeywords) {
+        const regex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+        if (regex.test(lowerInput)) {
+          date = new Date(); // Today
+          break;
+        }
       }
     }
   }
@@ -1440,7 +1451,7 @@ export function parseTaskInput(input: string): ParsedTask {
 
 /**
  * Find matching labels based on task title content
- * Uses fuzzy matching on label names and common variations
+ * Uses strict matching to avoid false positives
  */
 export function findMatchingLabels(title: string, labels: Label[]): Label[] {
   if (!labels.length) return [];
@@ -1451,20 +1462,28 @@ export function findMatchingLabels(title: string, labels: Label[]): Label[] {
   for (const label of labels) {
     const labelName = label.name.toLowerCase();
 
-    // Direct match - label name appears in title
+    // Direct match - full label name appears in title
     if (lowerTitle.includes(labelName)) {
       matchedLabels.push(label);
       continue;
     }
 
     // Split label name by common separators and check each word
+    // Only consider words with 3+ characters to avoid matching short words like "a", "de", etc.
     const labelWords = labelName.split(/[\s\-_\/]+/).filter(w => w.length > 2);
-    const titleWords = lowerTitle.split(/[\s\-_\/]+/);
+    // Only consider title words with 3+ characters for matching
+    const titleWords = lowerTitle.split(/[\s\-_\/]+/).filter(w => w.length > 2);
 
-    // Check if all significant words from label name appear in title
+    // Check if all significant label words appear as significant title words
+    // Use exact word match or require substantial overlap (not just containing a single letter)
     const allWordsMatch = labelWords.length > 0 && labelWords.every(labelWord =>
       titleWords.some(titleWord =>
-        titleWord.includes(labelWord) || labelWord.includes(titleWord)
+        // Exact match
+        titleWord === labelWord ||
+        // titleWord contains labelWord (labelWord is substring of titleWord)
+        (labelWord.length >= 3 && titleWord.includes(labelWord)) ||
+        // labelWord contains titleWord (titleWord is substring of labelWord) - only if titleWord is substantial
+        (titleWord.length >= 4 && labelWord.includes(titleWord))
       )
     );
 

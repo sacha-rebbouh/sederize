@@ -127,17 +127,17 @@ export function Sidebar({
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
   const [openThemes, setOpenThemes] = useState<Record<string, boolean>>({});
 
-  const toggleCategory = useCallback((categoryId: string) => {
+  const setCategoryOpen = useCallback((categoryId: string, open: boolean) => {
     setOpenCategories((prev) => ({
       ...prev,
-      [categoryId]: !prev[categoryId],
+      [categoryId]: open,
     }));
   }, []);
 
-  const toggleTheme = useCallback((themeId: string) => {
+  const setThemeOpen = useCallback((themeId: string, open: boolean) => {
     setOpenThemes((prev) => ({
       ...prev,
-      [themeId]: !prev[themeId],
+      [themeId]: open,
     }));
   }, []);
 
@@ -221,7 +221,7 @@ export function Sidebar({
     <div key={theme.id}>
       <Collapsible
         open={openThemes[theme.id] ?? false}
-        onOpenChange={() => toggleTheme(theme.id)}
+        onOpenChange={(open) => setThemeOpen(theme.id, open)}
       >
         <div className="flex items-center group">
           <CollapsibleTrigger asChild>
@@ -361,7 +361,7 @@ export function Sidebar({
     <div key={category.id}>
       <Collapsible
         open={openCategories[category.id] ?? true}
-        onOpenChange={() => toggleCategory(category.id)}
+        onOpenChange={(open) => setCategoryOpen(category.id, open)}
       >
         <div className="flex items-center group">
           <CollapsibleTrigger asChild>
