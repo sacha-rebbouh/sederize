@@ -33,7 +33,7 @@ import {
 } from '@/components/ui/select';
 import { WaterfallAssignDialog, WaterfallSelection } from '@/components/tasks/waterfall-assign-dialog';
 import { useDailyBriefTasks, useWaitingForTasks, useUpdateTask } from '@/hooks/use-tasks';
-import { useZombieSubjects, useActiveSubjects } from '@/hooks/use-subjects';
+import { useZombieSubjects } from '@/hooks/use-subjects';
 import { useCategories } from '@/hooks/use-categories';
 import { useThemes } from '@/hooks/use-themes';
 import { PRIORITY_LABELS, PriorityLevel } from '@/types/database';
@@ -101,7 +101,6 @@ export default function DailyBriefPage() {
   const { data: tasks, isLoading: tasksLoading } = useDailyBriefTasks(selectedDate);
   const { data: waitingFor } = useWaitingForTasks();
   const { data: zombies } = useZombieSubjects();
-  const { data: subjects } = useActiveSubjects();
   const { data: categories } = useCategories();
   const { data: themes } = useThemes();
   const updateTask = useUpdateTask();
@@ -288,32 +287,32 @@ export default function DailyBriefPage() {
         </div>
 
         {/* Date Navigation - Centered */}
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex items-center justify-center gap-1">
           <Button
             variant="ghost"
             size="icon"
             onClick={goToPreviousDay}
-            className="h-8 w-8"
+            className="h-11 w-11 active:scale-95"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-5 w-5" />
           </Button>
-          <span className="text-muted-foreground font-medium min-w-[180px] text-center capitalize">
+          <span className="text-muted-foreground font-medium min-w-[160px] md:min-w-[180px] text-center capitalize text-sm md:text-base">
             {formatDateLabel(selectedDate)}
           </span>
           <Button
             variant="ghost"
             size="icon"
             onClick={goToNextDay}
-            className="h-8 w-8"
+            className="h-11 w-11 active:scale-95"
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-5 w-5" />
           </Button>
           {!isToday(selectedDate) && (
             <Button
               variant="outline"
               size="sm"
               onClick={goToToday}
-              className="ml-2"
+              className="ml-1 h-9 px-3 text-xs"
             >
               Aujourd&apos;hui
             </Button>
@@ -321,145 +320,151 @@ export default function DailyBriefPage() {
         </div>
       </motion.div>
 
-      {/* Filters Row */}
+      {/* Filters Row - Scrollable on mobile */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="flex flex-wrap items-center justify-center gap-2"
+        className="relative"
       >
-        <Filter className="h-4 w-4 text-muted-foreground" />
+        <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
+          <div className="flex items-center gap-2 min-w-max md:justify-center">
+          <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" />
 
-        {/* Category Filter */}
-        <Select value={categoryFilter} onValueChange={handleCategoryChange}>
-          <SelectTrigger className={cn('w-[130px] h-8 text-xs', categoryFilter !== 'all' && 'border-primary')}>
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Catégories</SelectItem>
-            {categories?.map((cat) => (
-              <SelectItem key={cat.id} value={cat.id}>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: cat.color_hex }} />
-                  {cat.title}
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          {/* Category Filter */}
+          <Select value={categoryFilter} onValueChange={handleCategoryChange}>
+            <SelectTrigger className={cn('w-[120px] h-10 text-xs', categoryFilter !== 'all' && 'border-primary')}>
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Catégories</SelectItem>
+              {categories?.map((cat) => (
+                <SelectItem key={cat.id} value={cat.id}>
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full" style={{ backgroundColor: cat.color_hex }} />
+                    {cat.title}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        {/* Theme Filter */}
-        <Select value={themeFilter} onValueChange={setThemeFilter}>
-          <SelectTrigger className={cn('w-[130px] h-8 text-xs', themeFilter !== 'all' && 'border-primary')}>
-            <SelectValue placeholder="Thème" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Thèmes</SelectItem>
-            {filteredThemeOptions.map((theme) => (
-              <SelectItem key={theme.id} value={theme.id}>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: theme.color_hex }} />
-                  {theme.title}
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          {/* Theme Filter */}
+          <Select value={themeFilter} onValueChange={setThemeFilter}>
+            <SelectTrigger className={cn('w-[120px] h-10 text-xs', themeFilter !== 'all' && 'border-primary')}>
+              <SelectValue placeholder="Thème" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Thèmes</SelectItem>
+              {filteredThemeOptions.map((theme) => (
+                <SelectItem key={theme.id} value={theme.id}>
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full" style={{ backgroundColor: theme.color_hex }} />
+                    {theme.title}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        {/* Priority Filter */}
-        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-          <SelectTrigger className={cn('w-[110px] h-8 text-xs', priorityFilter !== 'all' && 'border-primary')}>
-            <SelectValue placeholder="Priorité" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Priorités</SelectItem>
-            {([3, 2, 1, 0] as PriorityLevel[]).map((p) => (
-              <SelectItem key={p} value={String(p)}>
-                {PRIORITY_LABELS[p]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          {/* Priority Filter */}
+          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+            <SelectTrigger className={cn('w-[100px] h-10 text-xs', priorityFilter !== 'all' && 'border-primary')}>
+              <SelectValue placeholder="Priorité" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Priorités</SelectItem>
+              {([3, 2, 1, 0] as PriorityLevel[]).map((p) => (
+                <SelectItem key={p} value={String(p)}>
+                  {PRIORITY_LABELS[p]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        {/* Clear Filters */}
-        <AnimatePresence>
-          {hasActiveFilters && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-            >
-              <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 gap-1 text-xs">
-                <X className="h-3 w-3" />
-                Effacer
-              </Button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+          {/* Clear Filters */}
+          <AnimatePresence>
+            {hasActiveFilters && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+              >
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-10 gap-1 text-xs flex-shrink-0">
+                  <X className="h-3 w-3" />
+                  Effacer
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          </div>
+        </div>
+        {/* Fade gradient to hint more content - mobile only */}
+        <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none md:hidden" />
       </motion.div>
 
       {/* Stats Row - Clickable Filters */}
       <motion.div
-        className="grid grid-cols-3 gap-3"
+        className="grid grid-cols-3 gap-2 md:gap-3"
         variants={containerVariants}
         initial="hidden"
         animate="show"
       >
-        <motion.div variants={itemVariants}>
+        <motion.div variants={itemVariants} className="h-full">
           <Card
             onClick={() => setActiveFilter(activeFilter === 'todo' ? 'all' : 'todo')}
             className={cn(
-              "p-4 hover:shadow-md transition-all cursor-pointer",
+              "h-full p-3 md:p-4 hover:shadow-md transition-all cursor-pointer active:scale-95",
               activeFilter === 'todo' && "ring-2 ring-primary shadow-md"
             )}
           >
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+            <div className="flex flex-col items-center text-center gap-1 md:flex-row md:text-left md:gap-3">
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <TrendingUp className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{totalTasks}</p>
-                <p className="text-xs text-muted-foreground font-medium">To Do</p>
+                <p className="text-xl md:text-2xl font-bold">{totalTasks}</p>
+                <p className="text-[10px] md:text-xs text-muted-foreground font-medium">To Do</p>
               </div>
             </div>
           </Card>
         </motion.div>
 
-        <motion.div variants={itemVariants}>
+        <motion.div variants={itemVariants} className="h-full">
           <Card
             onClick={() => setActiveFilter(activeFilter === 'waiting' ? 'all' : 'waiting')}
             className={cn(
-              "p-4 hover:shadow-md transition-all cursor-pointer",
+              "h-full p-3 md:p-4 hover:shadow-md transition-all cursor-pointer active:scale-95",
               activeFilter === 'waiting' && "ring-2 ring-amber-500 shadow-md"
             )}
           >
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-amber-500/10 flex items-center justify-center">
+            <div className="flex flex-col items-center text-center gap-1 md:flex-row md:text-left md:gap-3">
+              <div className="h-10 w-10 rounded-full bg-amber-500/10 flex items-center justify-center flex-shrink-0">
                 <Hourglass className="h-5 w-5 text-amber-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{waitingCount}</p>
-                <p className="text-xs text-muted-foreground font-medium">Waiting</p>
+                <p className="text-xl md:text-2xl font-bold">{waitingCount}</p>
+                <p className="text-[10px] md:text-xs text-muted-foreground font-medium">Waiting</p>
               </div>
             </div>
           </Card>
         </motion.div>
 
-        <motion.div variants={itemVariants}>
+        <motion.div variants={itemVariants} className="h-full">
           <Card
             onClick={() => setActiveFilter(activeFilter === 'inactive' ? 'all' : 'inactive')}
             className={cn(
-              "p-4 hover:shadow-md transition-all cursor-pointer",
+              "h-full p-3 md:p-4 hover:shadow-md transition-all cursor-pointer active:scale-95",
               activeFilter === 'inactive' && "ring-2 ring-amber-500 shadow-md"
             )}
           >
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-amber-500/10 flex items-center justify-center">
+            <div className="flex flex-col items-center text-center gap-1 md:flex-row md:text-left md:gap-3">
+              <div className="h-10 w-10 rounded-full bg-amber-500/10 flex items-center justify-center flex-shrink-0">
                 <AlertTriangle className="h-5 w-5 text-amber-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{zombieCount}</p>
-                <p className="text-xs text-muted-foreground font-medium">Inactifs</p>
+                <p className="text-xl md:text-2xl font-bold">{zombieCount}</p>
+                <p className="text-[10px] md:text-xs text-muted-foreground font-medium">Inactifs</p>
               </div>
             </div>
           </Card>

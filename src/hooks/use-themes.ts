@@ -1,17 +1,36 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery as usePowerSyncWatchedQuery } from '@powersync/react';
 import { createClient } from '@/lib/supabase/client';
+import { usePowerSyncDb, usePowerSyncReady } from '@/providers/powersync-provider';
+import { useAuth } from '@/providers/auth-provider';
 import { queryKeys } from '@/lib/query-keys';
 import { STALE_TIMES } from '@/providers/query-provider';
 import { Theme, CreateThemeInput, UpdateThemeInput } from '@/types/database';
+import { generateUUID, nowISO } from '@/lib/powersync/hooks';
 
 interface UseThemesOptions {
   enabled?: boolean;
 }
 
+// ============================================
+// READ HOOKS (PowerSync local SQLite)
+// ============================================
+
 export function useThemes(options?: UseThemesOptions) {
-  return useQuery({
+  const isPowerSyncReady = usePowerSyncReady();
+  const enabled = options?.enabled ?? true;
+
+  // PowerSync watched query - reads from local SQLite, auto-updates on changes
+  const powerSyncResult = usePowerSyncWatchedQuery<Theme>(
+    'SELECT * FROM themes ORDER BY order_index ASC',
+    [],
+    { runQueryOnce: false }
+  );
+
+  // Fallback to Supabase when PowerSync is not ready
+  const supabaseResult = useQuery({
     queryKey: queryKeys.themes.lists(),
     queryFn: async () => {
       const supabase = createClient();
@@ -24,12 +43,35 @@ export function useThemes(options?: UseThemesOptions) {
       return data as Theme[];
     },
     staleTime: STALE_TIMES.themes,
-    enabled: options?.enabled ?? true,
+    enabled: enabled && !isPowerSyncReady,
   });
+
+  // Return PowerSync data when available, otherwise Supabase
+  if (isPowerSyncReady) {
+    return {
+      data: (powerSyncResult.data ?? []) as Theme[],
+      isLoading: powerSyncResult.isLoading,
+      isFetching: powerSyncResult.isFetching,
+      error: powerSyncResult.error ?? null,
+      refetch: powerSyncResult.refresh,
+    };
+  }
+
+  return supabaseResult;
 }
 
 export function useTheme(id: string) {
-  return useQuery({
+  const isPowerSyncReady = usePowerSyncReady();
+
+  // PowerSync watched query for single theme
+  const powerSyncResult = usePowerSyncWatchedQuery<Theme>(
+    'SELECT * FROM themes WHERE id = ?',
+    [id],
+    { runQueryOnce: false }
+  );
+
+  // Fallback to Supabase
+  const supabaseResult = useQuery({
     queryKey: queryKeys.themes.detail(id),
     queryFn: async () => {
       const supabase = createClient();
@@ -42,22 +84,73 @@ export function useTheme(id: string) {
       if (error) throw error;
       return data as Theme;
     },
-    enabled: !!id,
+    enabled: !!id && !isPowerSyncReady,
     staleTime: STALE_TIMES.themes,
   });
+
+  if (isPowerSyncReady) {
+    const theme = powerSyncResult.data?.[0] ?? null;
+    return {
+      data: theme as Theme | null,
+      isLoading: powerSyncResult.isLoading,
+      isFetching: powerSyncResult.isFetching,
+      error: powerSyncResult.error ?? null,
+      refetch: powerSyncResult.refresh,
+    };
+  }
+
+  return supabaseResult;
 }
+
+// ============================================
+// WRITE HOOKS (PowerSync local SQLite -> Supabase sync)
+// ============================================
 
 export function useCreateTheme() {
   const queryClient = useQueryClient();
+  const db = usePowerSyncDb();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async (input: CreateThemeInput) => {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      const id = generateUUID();
+      const now = nowISO();
+      const theme: Theme = {
+        id,
+        user_id: user.id,
+        category_id: input.category_id || null,
+        title: input.title,
+        color_hex: input.color_hex || '#6366f1',
+        icon: input.icon || 'folder',
+        order_index: 0,
+        created_at: now,
+        updated_at: now,
+      };
+
+      // Write to PowerSync local DB (syncs automatically to Supabase)
+      if (db) {
+        await db.execute(
+          `INSERT INTO themes (id, user_id, category_id, title, color_hex, icon, order_index, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            theme.id,
+            theme.user_id,
+            theme.category_id,
+            theme.title,
+            theme.color_hex,
+            theme.icon,
+            theme.order_index,
+            theme.created_at,
+            theme.updated_at,
+          ]
+        );
+        return theme;
+      }
+
+      // Fallback to Supabase direct write
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('themes')
         .insert({
@@ -75,7 +168,7 @@ export function useCreateTheme() {
       return data as Theme;
     },
     onSuccess: () => {
-      // Invalidate themes list and categories with themes (sidebar needs update)
+      // Invalidate React Query cache (needed for Supabase fallback mode)
       queryClient.invalidateQueries({ queryKey: queryKeys.themes.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.withThemes() });
     },
@@ -84,9 +177,31 @@ export function useCreateTheme() {
 
 export function useUpdateTheme() {
   const queryClient = useQueryClient();
+  const db = usePowerSyncDb();
 
   return useMutation({
     mutationFn: async ({ id, ...input }: UpdateThemeInput & { id: string }) => {
+      const now = nowISO();
+      const updates = { ...input, updated_at: now };
+
+      // Write to PowerSync local DB
+      if (db) {
+        // Build dynamic update query
+        const fields = Object.keys(updates);
+        const setClause = fields.map((f) => `${f} = ?`).join(', ');
+        const values = [...Object.values(updates), id];
+
+        await db.execute(
+          `UPDATE themes SET ${setClause} WHERE id = ?`,
+          values
+        );
+
+        // Return updated theme
+        const result = await db.get<Theme>('SELECT * FROM themes WHERE id = ?', [id]);
+        return result as Theme;
+      }
+
+      // Fallback to Supabase
       const supabase = createClient();
       const { data, error } = await supabase
         .from('themes')
@@ -113,9 +228,17 @@ interface CategoryWithThemes {
 
 export function useDeleteTheme() {
   const queryClient = useQueryClient();
+  const db = usePowerSyncDb();
 
   return useMutation({
     mutationFn: async (id: string) => {
+      // Write to PowerSync local DB
+      if (db) {
+        await db.execute('DELETE FROM themes WHERE id = ?', [id]);
+        return id;
+      }
+
+      // Fallback to Supabase
       const supabase = createClient();
       const { error } = await supabase.from('themes').delete().eq('id', id);
 

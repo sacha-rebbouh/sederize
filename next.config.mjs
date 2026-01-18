@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Note: Static export ('output: export') disabled due to dynamic routes (/subject/[id])
+  // For Capacitor, use live reload mode during development (server.url in capacitor.config.ts)
+  // For production: host on Vercel and configure Capacitor to load from that URL
+
   // Optimize package imports for tree-shaking
   // This transforms barrel file imports to direct imports at build time
   experimental: {

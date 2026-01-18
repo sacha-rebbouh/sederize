@@ -51,6 +51,7 @@ import { useInboxCount, useWaitingForCount } from '@/hooks/use-tasks';
 import { useAuth } from '@/providers/auth-provider';
 import { useState, useCallback, useMemo } from 'react';
 import { Theme, SubjectWithTheme } from '@/types/database';
+import { SyncIndicator } from '@/components/ui/sync-status';
 
 const mainNavItems = [
   {
@@ -463,16 +464,20 @@ export function Sidebar({
             </span>
           )}
         </Link>
-        {!collapsed && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 flex-shrink-0"
-            onClick={() => onCollapsedChange?.(true)}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Sync status indicator */}
+          <SyncIndicator />
+          {!collapsed && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 flex-shrink-0"
+              onClick={() => onCollapsedChange?.(true)}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Expand button when collapsed */}

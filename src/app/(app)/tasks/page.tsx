@@ -426,14 +426,16 @@ export default function AllTasksPage() {
           )}
         </div>
 
-        <div className="flex flex-wrap gap-2 items-center">
-          <div className="flex items-center gap-2 text-muted-foreground">
+        {/* Filters - horizontally scrollable on mobile */}
+        <div className="relative">
+          <div className="flex gap-2 items-center overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap md:overflow-visible scrollbar-hide">
+          <div className="flex items-center gap-2 text-muted-foreground flex-shrink-0">
             <Filter className="h-4 w-4" />
           </div>
 
           {/* View Mode */}
           <Select value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
-            <SelectTrigger className="w-[130px] h-9">
+            <SelectTrigger className="w-[130px] h-9 flex-shrink-0">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -448,7 +450,7 @@ export default function AllTasksPage() {
 
           {/* Status Filter */}
           <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-            <SelectTrigger className={`w-[120px] h-9 ${statusFilter !== 'all' ? 'border-primary' : ''}`}>
+            <SelectTrigger className={`w-[120px] h-9 flex-shrink-0 ${statusFilter !== 'all' ? 'border-primary' : ''}`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -461,7 +463,7 @@ export default function AllTasksPage() {
 
           {/* Date Filter */}
           <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilter)}>
-            <SelectTrigger className={`w-[120px] h-9 ${dateFilter !== 'all' ? 'border-primary' : ''}`}>
+            <SelectTrigger className={`w-[120px] h-9 flex-shrink-0 ${dateFilter !== 'all' ? 'border-primary' : ''}`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -477,7 +479,7 @@ export default function AllTasksPage() {
 
           {/* Category Filter */}
           <Select value={categoryFilter} onValueChange={handleCategoryChange}>
-            <SelectTrigger className={`w-[130px] h-9 ${categoryFilter !== 'all' ? 'border-primary' : ''}`}>
+            <SelectTrigger className={`w-[130px] h-9 flex-shrink-0 ${categoryFilter !== 'all' ? 'border-primary' : ''}`}>
               <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
@@ -498,7 +500,7 @@ export default function AllTasksPage() {
 
           {/* Theme Filter (cascade from category) */}
           <Select value={themeFilter} onValueChange={handleThemeChange}>
-            <SelectTrigger className={`w-[130px] h-9 ${themeFilter !== 'all' ? 'border-primary' : ''}`}>
+            <SelectTrigger className={`w-[130px] h-9 flex-shrink-0 ${themeFilter !== 'all' ? 'border-primary' : ''}`}>
               <SelectValue placeholder="Theme" />
             </SelectTrigger>
             <SelectContent>
@@ -519,7 +521,7 @@ export default function AllTasksPage() {
 
           {/* Subject Filter (cascade from theme) */}
           <Select value={subjectFilter} onValueChange={setSubjectFilter}>
-            <SelectTrigger className={`w-[150px] h-9 ${subjectFilter !== 'all' ? 'border-primary' : ''}`}>
+            <SelectTrigger className={`w-[150px] h-9 flex-shrink-0 ${subjectFilter !== 'all' ? 'border-primary' : ''}`}>
               <SelectValue placeholder="Subject" />
             </SelectTrigger>
             <SelectContent>
@@ -539,6 +541,7 @@ export default function AllTasksPage() {
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
+                className="flex-shrink-0"
               >
                 <Button
                   variant="ghost"
@@ -552,6 +555,9 @@ export default function AllTasksPage() {
               </motion.div>
             )}
           </AnimatePresence>
+          </div>
+          {/* Fade gradient to hint more content - mobile only */}
+          <div className="absolute right-0 top-0 bottom-2 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none md:hidden" />
         </div>
       </motion.div>
 

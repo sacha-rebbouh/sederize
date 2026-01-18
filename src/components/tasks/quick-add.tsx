@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { useCreateTask } from '@/hooks/use-tasks';
-import { SubjectPicker } from './subject-picker';
+import { WaterfallPicker, WaterfallValue } from './waterfall-picker';
 import { parseTaskInput } from '@/lib/date-parser';
 import { cn } from '@/lib/utils';
 import { PriorityLevel, PRIORITY_LABELS } from '@/types/database';
@@ -32,10 +32,15 @@ interface QuickAddProps {
 
 export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) {
   const [internalOpen, setInternalOpen] = useState(false);
+  const [formKey, setFormKey] = useState(0);
   const [input, setInput] = useState('');
   const [doDate, setDoDate] = useState<Date | undefined>();
   const [doTime, setDoTime] = useState<string>('');
-  const [subjectId, setSubjectId] = useState<string | null>(null);
+  const [waterfall, setWaterfall] = useState<WaterfallValue>({
+    categoryId: null,
+    themeId: null,
+    subjectId: null,
+  });
   const [priority, setPriority] = useState<PriorityLevel>(1); // Default: Normal
   const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -51,10 +56,19 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
 
   const createTask = useCreateTask();
 
-  // Focus input when dialog opens
+  // Reset form when dialog opens
   useEffect(() => {
-    if (isOpen && inputRef.current) {
-      setTimeout(() => inputRef.current?.focus(), 100);
+    if (isOpen) {
+      // Increment key to force form remount and reset all state
+      setFormKey(k => k + 1);
+      setInput('');
+      setDoDate(undefined);
+      setDoTime('');
+      setWaterfall({ categoryId: null, themeId: null, subjectId: null });
+      setPriority(1);
+      setIsSubmitting(false);
+      // Focus input after a short delay
+      setTimeout(() => inputRef.current?.focus(), 150);
     }
   }, [isOpen]);
 
@@ -72,7 +86,9 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
         // Use manually selected date/time if set, otherwise use parsed values
         do_date: doDate ? format(doDate, 'yyyy-MM-dd') : (parsed.date ? format(parsed.date, 'yyyy-MM-dd') : null),
         do_time: doTime || parsed.time || null,
-        subject_id: subjectId,
+        subject_id: waterfall.subjectId,
+        theme_id: waterfall.themeId,
+        category_id: waterfall.categoryId,
         // Use parsed priority if detected, otherwise use manual selection (default 1 = Normal)
         priority: parsed.priority ?? priority,
       });
@@ -99,7 +115,7 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
       setInput('');
       setDoDate(undefined);
       setDoTime('');
-      setSubjectId(null);
+      setWaterfall({ categoryId: null, themeId: null, subjectId: null });
       setPriority(1);
       setOpen(false);
     } catch {
@@ -118,17 +134,20 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
     setInput('');
     setDoDate(undefined);
     setDoTime('');
-    setSubjectId(null);
+    setWaterfall({ categoryId: null, themeId: null, subjectId: null });
     setPriority(1);
   };
 
-  const hasOptions = doDate || doTime || subjectId || priority !== 1;
+  const hasOptions = doDate || doTime || waterfall.subjectId || waterfall.themeId || waterfall.categoryId || priority !== 1;
 
   return (
     <>
-      {/* FAB Button */}
+      {/* FAB Button - above bottom nav on mobile, normal position on desktop */}
       <motion.div
-        className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-40"
+        className="fixed right-4 z-40 md:right-6"
+        style={{
+          bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))',
+        }}
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ type: 'spring', delay: 0.3 }}
@@ -164,7 +183,7 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form key={formKey} onSubmit={handleSubmit} className="space-y-4">
             {/* Task Input */}
             <div className="relative">
               <Input
@@ -174,6 +193,9 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
                 onChange={(e) => handleInputChange(e.target.value)}
                 className="pr-10 text-lg h-12"
                 disabled={isSubmitting}
+                autoCapitalize="off"
+                autoCorrect="off"
+                autoComplete="off"
               />
               <AnimatePresence>
                 {input && (
@@ -181,7 +203,7 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.8 }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2"
+                    className="absolute right-2 inset-y-0 flex items-center"
                   >
                     <Button
                       type="button"
@@ -197,9 +219,9 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
               </AnimatePresence>
             </div>
 
-            {/* Options Row */}
+            {/* Row 1: Date, Time, Priority */}
             <motion.div
-              className="flex flex-wrap gap-2"
+              className="flex gap-2"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
@@ -282,12 +304,6 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
                 </PopoverContent>
               </Popover>
 
-              {/* Subject Selector */}
-              <SubjectPicker
-                value={subjectId}
-                onChange={setSubjectId}
-              />
-
               {/* Priority Selector */}
               <Popover>
                 <PopoverTrigger asChild>
@@ -327,6 +343,20 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
                   </div>
                 </PopoverContent>
               </Popover>
+            </motion.div>
+
+            {/* Row 2: Assignment + Clear */}
+            <motion.div
+              className="flex gap-2"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+            >
+              {/* Waterfall Assignment */}
+              <WaterfallPicker
+                value={waterfall}
+                onChange={setWaterfall}
+              />
 
               {/* Clear all options */}
               <AnimatePresence>

@@ -15,7 +15,6 @@ import {
   Edit3,
   ArrowRight,
   Clock,
-  ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -150,13 +149,13 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
           />
         )}
 
-        {/* Checkbox with animation */}
+        {/* Checkbox with animation - 44px touch target for mobile */}
         <motion.button
           onClick={handleComplete}
           disabled={completeTask.isPending}
-          className="mt-0.5 flex-shrink-0 relative"
+          className="flex-shrink-0 relative h-11 w-11 flex items-center justify-center -ml-2 -mt-1"
           whileTap={{ scale: 0.9 }}
-          whileHover={{ scale: 1.1 }}
+          whileHover={{ scale: 1.05 }}
         >
           <AnimatePresence mode="wait">
             {isDone ? (
@@ -167,20 +166,20 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
                 exit={{ scale: 0 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 30 }}
               >
-                <CheckCircle2 className="h-5 w-5 text-primary" />
+                <CheckCircle2 className="h-6 w-6 text-primary" />
               </motion.div>
             ) : isWaitingFor ? (
               <motion.div
                 key="waiting"
                 className="relative group/waiting"
               >
-                <Hourglass className="h-5 w-5 text-amber-500" />
+                <Hourglass className="h-6 w-6 text-amber-500" />
                 {/* Hover overlay to show can complete */}
                 <motion.div
                   className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/waiting:opacity-100 transition-opacity"
                   title="Click to complete"
                 >
-                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  <CheckCircle2 className="h-6 w-6 text-green-500" />
                 </motion.div>
               </motion.div>
             ) : isCompleting ? (
@@ -190,7 +189,7 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
                 animate={{ scale: [1, 1.2, 1], rotate: 360 }}
                 transition={{ duration: 0.3 }}
               >
-                <CheckCircle2 className="h-5 w-5 text-primary" />
+                <CheckCircle2 className="h-6 w-6 text-primary" />
               </motion.div>
             ) : (
               <motion.div
@@ -198,7 +197,7 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
                 whileHover={{ scale: 1.1 }}
                 className="relative"
               >
-                <Circle className="h-5 w-5 text-muted-foreground/50 group-hover:text-primary/70 transition-colors" />
+                <Circle className="h-6 w-6 text-muted-foreground/40 group-hover:text-primary/70 transition-colors" />
                 {/* Hover hint */}
                 <motion.div
                   className="absolute inset-0 rounded-full bg-primary/10"
@@ -212,9 +211,9 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
         </motion.button>
 
         {/* Content */}
-        <div className="flex-1 min-w-0 pl-1">
+        <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 overflow-hidden">
               {/* Subject badge */}
               {showSubject && subjectTitle && (
                 <motion.div
@@ -235,15 +234,14 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
               )}
 
               {/* Title */}
-              <div
+              <p
                 className={cn(
-                  'font-medium leading-snug flex items-center gap-1',
+                  'font-medium leading-snug',
                   isDone ? 'line-through text-muted-foreground' : 'group-hover:text-primary transition-colors'
                 )}
               >
-                <span>{task.title}</span>
-                <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-50 transition-opacity -ml-0.5" />
-              </div>
+                {task.title.length > 18 ? `${task.title.slice(0, 18)}...` : task.title}
+              </p>
 
               {/* Description */}
               {task.description && !compact && (
@@ -312,16 +310,16 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
             </div>
 
             {/* Actions - Always visible on mobile, hover on desktop */}
-            <div className="flex flex-col items-end gap-1">
-              <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+            <div className="flex flex-col items-end gap-1 -mr-1 -mt-1 flex-shrink-0">
+              <div className="flex items-center md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                 {!isDone && !isWaitingFor && (
                   <SnoozePopover taskId={task.id} taskDate={task.do_date} />
                 )}
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                      <MoreHorizontal className="h-4 w-4" />
+                    <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-foreground">
+                      <MoreHorizontal className="h-5 w-5" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">

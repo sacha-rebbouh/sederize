@@ -83,9 +83,9 @@ export function SnoozePopover({ taskId, taskDate, className }: SnoozePopoverProp
         <Button
           variant="ghost"
           size="icon"
-          className={cn('h-8 w-8', className)}
+          className={cn('h-10 w-10', className)}
         >
-          <AlarmClock className="h-4 w-4" />
+          <AlarmClock className="h-5 w-5" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="end">

@@ -1,5 +1,348 @@
 # Changes Log - Sederize
 
+## 2026-01-19 01:00 - QuickAdd uses WaterfallPicker + Modal Fix
+
+### Fichiers modifiés
+- `src/components/tasks/quick-add.tsx` - Utilise WaterfallPicker au lieu de SubjectPicker
+- `src/components/tasks/waterfall-picker.tsx` - Fix modal closing issue
+
+### Changements
+- QuickAdd utilise maintenant WaterfallPicker (3 colonnes: Categories, Themes, Subjects)
+- Fix du bouton WaterfallPicker qui fermait le modal parent
+  - Ajout de `e.preventDefault()` et `e.stopPropagation()` sur le click
+  - Suppression de `modal={false}` sur le Dialog
+  - Ajout de `type="button"` pour éviter submit du form parent
+
+---
+
+## 2026-01-19 00:45 - SubjectPicker Mobile Fix
+
+### Fichiers modifiés
+- `src/components/tasks/subject-picker.tsx` - Refonte complète
+
+### Changements
+- Remplacé le composant Command (cmdk) par des boutons natifs (meilleur support touch)
+- Ajouté ScrollArea pour scroll natif sur mobile
+- Ajouté état de chargement (spinner)
+- Ajouté état vide ("Aucun projet")
+- Simplifié la logique de groupement (themes > subjects)
+- Supprimé la dépendance à useCategoriesWithThemes (plus simple)
+- Truncation du label à 12 caractères
+
+---
+
+## 2026-01-18 23:50 - Task Card Title Truncation
+
+### Fichiers modifiés
+- `src/components/tasks/task-card.tsx` - Truncation à 18 caractères
+
+### Changements
+- Limite de 18 caractères sur le titre de la tâche
+- Ajout de "..." si le titre dépasse
+
+---
+
+## 2026-01-18 22:15 - v0.7.0 - Calendar Mobile V2 (Agenda View)
+
+### Fichiers créés
+- `src/app/(app)/calendar/calendar-mobile-v1.tsx` - Backup de l'ancienne version
+
+### Fichiers modifiés
+- `src/app/(app)/calendar/page.tsx` - Nouvelle vue agenda mobile-first
+
+### Nouvelle UX Calendar
+
+**Avant (v1)** : 4 vues (Jour/3J/Sem/Mois), 3 lignes de contrôles, grille minuscule sur mobile
+
+**Après (v2)** : Vue agenda scrollable
+- Header compact : mois/année + bouton "Aller à"
+- Liste scrollable des jours avec tâches
+- Headers sticky par jour
+- Section "En retard" en haut si tâches overdue
+- Bouton "Voir plus" pour charger +14 jours
+- FAB "Aujourd'hui" quand on scroll
+- Picker calendrier pour navigation rapide
+- Jours vides masqués (sauf aujourd'hui)
+
+### Avantages
+- Moins de chrome, plus de contenu
+- Tâches visibles directement (pas de modal)
+- Navigation naturelle par scroll
+- Adapté au thumb scrolling mobile
+
+### Fix picker (22:20)
+- Date sélectionnée toujours affichée dans l'agenda (même sans tâches)
+- Jours avec tâches soulignés en gras dans le picker
+- Highlight violet sur la date sélectionnée dans l'agenda
+
+### Fix FAB position (22:25)
+- FAB "+" : `bottom: calc(5rem + env(safe-area-inset-bottom))`
+- FAB "Aujourd'hui" calendar : `bottom: calc(6rem + env(safe-area-inset-bottom))`
+- Position correcte au-dessus de la bottom nav + home indicator
+
+### Fix All Tasks filters (22:30)
+- Filtres scrollables horizontalement sur mobile (comme Daily Brief)
+- `flex-shrink-0` sur tous les Select pour éviter compression
+- Plus de wrap vertical qui prend tout l'écran
+- **Gradient fade** sur le bord droit pour indiquer qu'il y a plus de contenu
+- `scrollbar-hide` pour masquer la barre de scroll (plus propre)
+- Même traitement appliqué à Daily Brief
+
+### Fix Kanban mobile UX (22:35)
+- **View Mode buttons** : Compacts (labels raccourcis sur mobile)
+- **Kanban board** : Plus de scroll horizontal "bateau sur l'océan"
+  - Mobile : Tabs pour switcher entre colonnes, une seule colonne affichée
+  - Desktop : Scroll horizontal conservé
+- Tabs avec badges montrant le nombre de tâches par colonne
+
+---
+
+## 2026-01-18 21:45 - v0.6.3 - iOS Safe Area Fix
+
+### Fichiers modifiés
+- `src/app/layout.tsx` - Ajout `viewportFit: "cover"` pour étendre sous la status bar
+- `src/app/globals.css` - Variables CSS pour safe area insets
+- `src/components/layout/app-shell.tsx` - Padding-top pour respecter safe area
+- `src/components/layout/bottom-nav.tsx` - Padding-bottom pour home indicator
+- `src/components/layout/mobile-menu.tsx` - Safe areas pour le menu Sheet
+
+### Correction Safe Area iOS
+
+1. **Viewport Config**
+   - `viewportFit: "cover"` permet à l'app de s'étendre sous la status bar
+   - Nécessaire pour que les `env(safe-area-inset-*)` fonctionnent
+
+2. **Main Content**
+   - Spacer fixe (non-scrollable) avec `height: env(safe-area-inset-top)`
+   - Le contenu ne chevauche plus la status bar même en scrollant
+
+3. **Bottom Navigation**
+   - `paddingBottom: env(safe-area-inset-bottom)` pour les iPhones avec home indicator
+   - La barre de navigation ne sera pas coupée par le geste de swipe
+
+---
+
+## 2026-01-18 21:30 - v0.6.2 - Mobile UI Fixes
+
+### Fichiers modifiés
+- `src/app/(app)/page.tsx` - Stats cards, filtres, navigation date
+- `src/components/tasks/task-card.tsx` - Checkbox, boutons actions
+- `src/components/tasks/snooze-popover.tsx` - Bouton snooze
+
+### Corrections UI Mobile
+
+1. **Stats Cards (To Do / Waiting / Inactifs)**
+   - Hauteur uniforme avec `h-full` sur tous les cards
+   - Layout vertical centré sur mobile, horizontal sur desktop
+   - Padding réduit sur mobile (`p-3` vs `p-4`)
+   - Texte plus petit sur mobile (`text-xl` vs `text-2xl`)
+
+2. **Touch Targets (minimum 44px)**
+   - Checkbox: `h-11 w-11` avec icônes `h-6 w-6`
+   - Boutons nav date: `h-11 w-11`
+   - Bouton menu (3 dots): `h-10 w-10`
+   - Bouton snooze: `h-10 w-10`
+   - Filtres: `h-10` (hauteur augmentée)
+
+3. **Filtres Row**
+   - Scrollable horizontalement sur mobile (`overflow-x-auto`)
+   - Padding négatif pour scroll edge-to-edge
+   - Centré sur desktop
+
+4. **Feedback tactile**
+   - `active:scale-95` sur les cards et boutons
+
+---
+
+## 2026-01-18 20:30 - v0.6.1 - Capacitor iOS Setup
+
+### Fichiers créés
+- `capacitor.config.json` - Configuration Capacitor (appId, plugins, iOS settings)
+- `ios/` - Projet Xcode complet généré par Capacitor
+
+### Fichiers modifiés
+- `package.json` - Ajout dépendances @capacitor/core@7, @capacitor/cli@7, @capacitor/ios@7
+- `next.config.mjs` - Note sur static export (incompatible avec routes dynamiques)
+- `src/app/(app)/kanban/page.tsx` - Suppression fonction inutilisée `handleClearDate`
+- `src/app/(app)/page.tsx` - Suppression import inutilisé `useActiveSubjects`
+
+### Configuration Capacitor
+- **App ID**: com.sederize.app
+- **Version Capacitor**: 7.x (Node 20 compatible)
+- **Mode actuel**: Live reload (localhost:3000) - idéal pour le développement
+- Plugins configurés: SplashScreen, StatusBar, Keyboard
+- iOS minimum: 14.0
+
+### Notes importantes
+- Capacitor 8 nécessite Node 22+, donc on utilise Capacitor 7 avec Node 20
+- `output: 'export'` désactivé car incompatible avec routes dynamiques (`/subject/[id]`)
+- Pour le dev: Capacitor charge depuis `localhost:3000` (Next.js dev server)
+- Pour la prod: Héberger sur Vercel et configurer `server.url` vers l'URL de prod
+
+### Workflow de développement iOS
+1. Terminal: `npm run dev -p 3001` (ou port disponible)
+2. Build: `cd ios/App && xcodebuild -workspace App.xcworkspace -scheme App -destination 'platform=iOS Simulator,id=<SIMULATOR_ID>' build`
+3. Install: `xcrun simctl install <SIMULATOR_ID> ~/Library/Developer/Xcode/DerivedData/App-*/Build/Products/Debug-iphonesimulator/App.app`
+4. Launch: `xcrun simctl launch <SIMULATOR_ID> com.sederize.app`
+
+### Corrections appliquées
+- Info.plist: Ajout NSAppTransportSecurity pour autoriser HTTP local
+- Config: Utiliser IP locale (192.168.1.x) au lieu de localhost pour le simulateur
+- Capacitor 7.x utilisé (Node 20 compatible)
+
+---
+
+## 2026-01-18 19:30 - v0.6.0 - PowerSync Hooks Adaptation (Offline-First)
+
+### Fichiers créés
+- `src/lib/powersync/hooks.ts` - Utilitaires PowerSync (generateUUID, nowISO, formatDateSQL, SQL builders)
+
+### Fichiers modifiés
+- `src/hooks/use-tasks.ts` - Adapté pour PowerSync (reads locaux, writes sync)
+- `src/hooks/use-themes.ts` - Adapté pour PowerSync
+- `src/hooks/use-subjects.ts` - Adapté pour PowerSync
+- `src/hooks/use-categories.ts` - Adapté pour PowerSync
+- `src/hooks/use-labels.ts` - Adapté pour PowerSync
+- `src/hooks/use-pending-items.ts` - Adapté pour PowerSync
+
+### Architecture Offline-First
+
+#### Pattern de lecture (READS)
+- Utilisation de `usePowerSyncWatchedQuery` de @powersync/react
+- Requêtes SQL directes sur la base SQLite locale
+- Auto-refresh quand les données changent localement
+- Fallback Supabase quand PowerSync n'est pas prêt
+
+#### Pattern d'écriture (WRITES)
+- Écriture via `db.execute()` dans SQLite local
+- PowerSync synchronise automatiquement vers Supabase
+- Fallback Supabase direct si PowerSync n'est pas disponible
+- UUID générés côté client pour les nouvelles entrées
+
+#### Relations (JOINS)
+- Les JOINs Supabase ne sont pas disponibles en SQLite
+- Solution: requêtes séparées + jointure en mémoire avec useMemo
+- Maps pour lookup O(1): subjects, themes, categories, labels
+- Fonction `transformTaskWithRelations()` pour la logique waterfall
+
+#### Hooks adaptés
+| Hook | Queries | Mutations |
+|------|---------|-----------|
+| use-tasks | 11 queries | 7 mutations |
+| use-themes | 2 queries | 3 mutations |
+| use-subjects | 4 queries | 3 mutations |
+| use-categories | 3 queries | 3 mutations |
+| use-labels | 2 queries | 5 mutations |
+| use-pending-items | 3 queries | 5 mutations |
+
+### Prochaines étapes
+1. Tester le mode offline (couper le réseau)
+2. Setup Capacitor pour iOS
+3. Push notifications
+4. Widgets iOS
+
+---
+
+## 2026-01-18 - v0.5.0 - PowerSync Infrastructure (Phase 2 Progress)
+
+### Fichiers créés
+- `src/lib/powersync/schema.ts` - Définitions des tables PowerSync (tasks, themes, subjects, categories, labels, etc.)
+- `src/lib/powersync/connector.ts` - Connecteur Supabase ↔ PowerSync avec gestion CRUD
+- `src/providers/powersync-provider.tsx` - Provider React pour PowerSync avec état de sync
+- `src/components/ui/sync-status.tsx` - Composants UI pour afficher le statut de synchronisation
+- `public/icon-512.svg` - Source SVG de l'icône 512x512
+- `public/icon-1024.svg` - Source SVG de l'icône 1024x1024
+- `public/icon-1024.png` - Icône 1024x1024 pour l'App Store
+
+### Fichiers modifiés
+- `public/icon-512.png` - Régénéré à la bonne taille (était 192x192, maintenant 512x512)
+- `public/manifest.json` - Ajout du tableau icons avec 192, 512, et 1024px
+- `src/providers/index.tsx` - Ajout du PowerSyncProvider dans la hiérarchie
+- `src/components/layout/sidebar.tsx` - Ajout du SyncIndicator dans le header
+- `.env.local.example` - Ajout de NEXT_PUBLIC_POWERSYNC_URL
+- `powersync-and-app.md` - Mise à jour avec la progression
+
+### Fonctionnalités ajoutées
+
+#### 1. PowerSync Schema
+Toutes les tables de la base de données sont définies pour la sync offline :
+- `tasks`, `themes`, `subjects`, `categories`
+- `labels`, `task_labels` (junction table)
+- `pending_items`, `user_preferences`, `task_attachments`
+
+#### 2. PowerSync Connector
+- Authentification via JWT Supabase
+- Upload des mutations locales vers Supabase
+- Gestion des opérations PUT, PATCH, DELETE
+- Nettoyage automatique des données
+
+#### 3. PowerSync Provider
+- Initialisation automatique quand l'utilisateur est authentifié
+- Gestion de l'état de connexion (connected, syncing, offline)
+- Détection des changements en attente
+- Hooks: `usePowerSyncState()`, `usePowerSyncDb()`, `usePowerSyncReady()`
+
+#### 4. UI de synchronisation
+- `SyncStatus` - Composant badge/full avec tooltip
+- `SyncIndicator` - Point de couleur minimaliste
+- États : synced (vert), syncing (bleu animé), offline (orange), pending (bleu), error (rouge)
+
+### Configuration terminée (2026-01-18)
+- PowerSync connecté avec succès (point vert visible)
+- URL: `https://696c1946cc2560584a00c95e.powersync.journeyapps.com`
+- Publication PostgreSQL créée dans Supabase
+- Sync Rules configurées dans le dashboard PowerSync
+
+### Prochaines étapes
+1. Agent: Adapter les hooks React Query pour utiliser PowerSync (offline reads)
+2. Agent: Setup Capacitor pour iOS
+3. Utilisateur: Créer compte Apple Developer ($99/an)
+4. Agent: Push notifications
+5. Agent: Widgets iOS
+4. Agent: Tester le mode offline
+
+### Dépendances ajoutées
+```
+@powersync/web
+@powersync/react
+```
+
+---
+
+## 2026-01-18 - iOS App & Offline Support Plan
+
+### Fichiers créés
+- `powersync-and-app.md` - Documentation complète pour l'implémentation iOS + offline
+
+### Contexte
+L'utilisateur souhaite transformer la webapp en app iOS avec:
+- **Offline-first** (PowerSync) - ESSENTIEL dès le jour 1
+- **Push notifications** (APNs via Capacitor)
+- **Widgets iOS** (SwiftUI WidgetKit)
+- **Distribution App Store** (Capacitor)
+
+### Décisions confirmées par l'utilisateur
+| Question | Réponse |
+|----------|---------|
+| Apple Developer Account | Non, pas encore |
+| Priorité offline | Essentiel dès le jour 1 |
+| Features natives | Push notifications + Widgets |
+| Static export OK | Oui |
+
+### Plan d'implémentation
+1. **Phase 1**: Prérequis (comptes Apple + PowerSync) + fix icônes
+2. **Phase 2**: Intégration PowerSync (schema, connector, provider, adaptation hooks)
+3. **Phase 3**: Setup Capacitor (static export, config, safe areas)
+4. **Phase 4**: Push notifications (APNs, Edge Function)
+5. **Phase 5**: Widgets iOS (SwiftUI natif)
+6. **Phase 6**: Soumission App Store
+
+### Fichiers de référence
+- Plan détaillé: `~/.claude/plans/calm-kindling-seahorse.md`
+- Guide d'implémentation: `powersync-and-app.md`
+
+---
+
 ## 2026-01-15 - v0.4.21 - Fix Chevron Double-Click & Date Parser "a 10h"
 
 ### Fichiers modifiés

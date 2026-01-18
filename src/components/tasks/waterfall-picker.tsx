@@ -195,9 +195,14 @@ export const WaterfallPicker = memo(function WaterfallPicker({ value, onChange, 
   return (
     <>
       <Button
+        type="button"
         variant="outline"
         role="combobox"
-        onClick={() => setOpen(true)}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setOpen(true);
+        }}
         className={cn(
           'w-full h-9 justify-between transition-all',
           (value.categoryId || value.themeId || value.subjectId) &&
@@ -217,7 +222,7 @@ export const WaterfallPicker = memo(function WaterfallPicker({ value, onChange, 
         <ChevronRight className="ml-2 h-4 w-4 shrink-0 opacity-50" />
       </Button>
 
-      <Dialog open={open} onOpenChange={setOpen} modal={false}>
+      <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
           className="sm:max-w-4xl max-h-[85vh] flex flex-col p-0"
           aria-describedby={undefined}

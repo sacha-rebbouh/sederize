@@ -49,12 +49,16 @@ export function MobileMenu({ open, onOpenChange }: MobileMenuProps) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-80 p-0">
+      <SheetContent
+        side="right"
+        className="w-80 p-0"
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+      >
         <SheetHeader className="p-4 border-b">
           <SheetTitle>Menu</SheetTitle>
         </SheetHeader>
 
-        <ScrollArea className="flex-1 h-[calc(100vh-140px)]">
+        <ScrollArea className="flex-1 h-[calc(100vh-140px-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))]">
           <div className="p-4 space-y-4">
             {/* Quick Links */}
             <div>
@@ -134,7 +138,10 @@ export function MobileMenu({ open, onOpenChange }: MobileMenuProps) {
 
         <Separator />
 
-        <div className="p-4 space-y-2">
+        <div
+          className="p-4 space-y-2"
+          style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+        >
           <Link href="/settings" onClick={handleNavigation}>
             <Button variant="ghost" className="w-full justify-start gap-2">
               <Settings className="h-4 w-4" />

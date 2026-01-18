@@ -202,7 +202,14 @@ export function AppShell({ children }: AppShellProps) {
 
         {/* Main Content */}
         <main className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-auto pb-20 md:pb-0">{children}</div>
+          {/* Fixed safe area spacer - doesn't scroll */}
+          <div
+            className="flex-shrink-0 bg-background md:hidden"
+            style={{ height: 'env(safe-area-inset-top, 0px)' }}
+          />
+          <div className="flex-1 overflow-auto pb-20 md:pb-0">
+            {children}
+          </div>
         </main>
 
         {/* Mobile Bottom Navigation */}

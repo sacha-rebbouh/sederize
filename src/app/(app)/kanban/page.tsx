@@ -343,12 +343,12 @@ function DroppableColumn({
         </CardHeader>
 
         <CardContent className="flex-1 pt-0 min-h-0" ref={setNodeRef}>
-          <ScrollArea className="h-[calc(100vh-280px)]">
+          <ScrollArea className="h-[calc(100vh-280px)] md:h-[calc(100vh-280px)]">
             <SortableContext
               items={tasks.map((t) => t.id)}
               strategy={verticalListSortingStrategy}
             >
-              <div className="space-y-2 pr-2 min-h-[100px] pb-4">
+              <div className="space-y-2 pr-2 min-h-[100px] pb-24 md:pb-4">
                 <AnimatePresence mode="sync">
                   {tasks.length === 0 ? (
                     <motion.div
@@ -388,6 +388,7 @@ export default function KanbanPage() {
   const [activeTask, setActiveTask] = useState<TaskWithRelations | null>(null);
   const [filter, setFilter] = useState<FilterState>({ categoryIds: [], themeIds: [], subjectIds: [] });
   const [viewMode, setViewMode] = useState<ViewMode>('todo-by-date');
+  const [mobileColumnIndex, setMobileColumnIndex] = useState(0);
   const [datePicker, setDatePicker] = useState<DatePickerState>({
     isOpen: false,
     taskId: null,
@@ -485,6 +486,14 @@ export default function KanbanPage() {
     return { columns: cols, tasksByColumn: byColumn, visibleTasks: tasks };
   }, [filteredTasks, viewMode]);
 
+  // Reset mobile column index when view mode or columns change
+  const columnsLength = columns.length;
+  useMemo(() => {
+    if (mobileColumnIndex >= columnsLength) {
+      setMobileColumnIndex(0);
+    }
+  }, [columnsLength, mobileColumnIndex]);
+
   const handleDragStart = (event: DragStartEvent) => {
     const task = visibleTasks.find((t) => t.id === event.active.id);
     if (task) setActiveTask(task);
@@ -513,21 +522,6 @@ export default function KanbanPage() {
         {
           onSuccess: () => {
             toast.success(`Date mise à jour: ${format(date, 'EEEE d MMMM', { locale: fr })}`);
-          },
-        }
-      );
-    }
-    setDatePicker({ isOpen: false, taskId: null, targetColumn: null });
-  }, [datePicker.taskId, updateTask]);
-
-  // Clear date when moving to "no-date" column
-  const handleClearDate = useCallback(() => {
-    if (datePicker.taskId) {
-      updateTask.mutate(
-        { id: datePicker.taskId, do_date: null },
-        {
-          onSuccess: () => {
-            toast.success('Date supprimée');
           },
         }
       );
@@ -681,31 +675,70 @@ export default function KanbanPage() {
           </motion.div>
         </div>
 
-        {/* View Mode Selector */}
-        <div className="flex items-center gap-2 justify-center">
+        {/* View Mode Selector - compact on mobile */}
+        <div className="flex items-center gap-1.5 justify-center">
           {viewModes.map((mode) => (
             <Button
               key={mode.id}
               variant={viewMode === mode.id ? 'default' : 'outline'}
               size="sm"
               onClick={() => setViewMode(mode.id)}
-              className="gap-2"
+              className="gap-1 px-2 md:px-3 h-8 text-xs"
             >
               {mode.icon}
-              {mode.label}
+              <span className="hidden sm:inline">{mode.label}</span>
+              <span className="sm:hidden">
+                {mode.id === 'all-status' ? 'All' : mode.id === 'todo-by-date' ? 'Todo' : mode.label}
+              </span>
             </Button>
           ))}
         </div>
       </motion.div>
 
       {/* Kanban Board */}
-      <div className="flex-1 overflow-x-auto px-4 md:px-6 pb-6 min-h-0">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        {/* Mobile: Column Tabs + Single Column */}
+        <div className="md:hidden flex-1 flex flex-col min-h-0 px-4 pb-20">
+          {/* Column Tabs */}
+          <div className="flex gap-1 mb-3 overflow-x-auto scrollbar-hide pb-1">
+            {columns.map((column, i) => (
+              <button
+                key={column.id}
+                onClick={() => setMobileColumnIndex(i)}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all flex-shrink-0',
+                  mobileColumnIndex === i
+                    ? `${column.bgColor} ${column.color}`
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                )}
+              >
+                {column.icon}
+                {column.title}
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
+                  {(tasksByColumn[column.id] || []).length}
+                </Badge>
+              </button>
+            ))}
+          </div>
+
+          {/* Single Column Content */}
+          {columns[mobileColumnIndex] && (
+            <div className="flex-1 min-h-0">
+              <DroppableColumn
+                column={columns[mobileColumnIndex]}
+                tasks={tasksByColumn[columns[mobileColumnIndex].id] || []}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Desktop: Horizontal Scroll */}
+        <div className="hidden md:block flex-1 overflow-x-auto px-6 pb-6 min-h-0">
           <div className="flex gap-4 h-full min-w-max">
             {columns.map((column, i) => (
               <motion.div
@@ -722,36 +755,35 @@ export default function KanbanPage() {
               </motion.div>
             ))}
           </div>
+        </div>
 
-          <DragOverlay>
-            {activeTask && (
-              <motion.div
-                initial={{ scale: 1, rotate: 0 }}
-                animate={{ scale: 1.05, rotate: 2 }}
-                className="p-3 rounded-xl border bg-card shadow-2xl w-[300px]"
-              >
-                <div className="flex items-start gap-2">
-                  {/* Use same color logic as SortableTaskCard: category > theme */}
-                  {(activeTask.category?.color_hex || activeTask.theme?.color_hex) && (
-                    <div
-                      className="h-2.5 w-2.5 rounded-full mt-1.5 flex-shrink-0"
-                      style={{ backgroundColor: activeTask.category?.color_hex || activeTask.theme?.color_hex }}
-                    />
+        <DragOverlay>
+          {activeTask && (
+            <motion.div
+              initial={{ scale: 1, rotate: 0 }}
+              animate={{ scale: 1.05, rotate: 2 }}
+              className="p-3 rounded-xl border bg-card shadow-2xl w-[300px]"
+            >
+              <div className="flex items-start gap-2">
+                {(activeTask.category?.color_hex || activeTask.theme?.color_hex) && (
+                  <div
+                    className="h-2.5 w-2.5 rounded-full mt-1.5 flex-shrink-0"
+                    style={{ backgroundColor: activeTask.category?.color_hex || activeTask.theme?.color_hex }}
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">{activeTask.title}</p>
+                  {getHierarchyLabel(activeTask) && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {getHierarchyLabel(activeTask)}
+                    </p>
                   )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{activeTask.title}</p>
-                    {getHierarchyLabel(activeTask) && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {getHierarchyLabel(activeTask)}
-                      </p>
-                    )}
-                  </div>
                 </div>
-              </motion.div>
-            )}
-          </DragOverlay>
-        </DndContext>
-      </div>
+              </div>
+            </motion.div>
+          )}
+        </DragOverlay>
+      </DndContext>
 
       {/* Date Picker Dialog */}
       <Dialog
