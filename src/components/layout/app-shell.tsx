@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
 import { Sidebar } from './sidebar';
 import { BottomNav } from './bottom-nav';
 import { MobileMenu } from './mobile-menu';
@@ -10,6 +11,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { useDeleteCategory, useUpdateCategory } from '@/hooks/use-categories';
 import { useDeleteTheme, useUpdateTheme } from '@/hooks/use-themes';
 import { useDeleteSubject, useUpdateSubject } from '@/hooks/use-subjects';
+import { useAuth } from '@/providers/auth-provider';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EditEntityDialog } from '@/components/ui/edit-entity-dialog';
 
@@ -37,6 +39,7 @@ interface AppShellProps {
 }
 
 export function AppShell({ children }: AppShellProps) {
+  const { isSigningOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [createCategoryOpen, setCreateCategoryOpen] = useState(false);
   const [createThemeOpen, setCreateThemeOpen] = useState(false);
@@ -45,6 +48,18 @@ export function AppShell({ children }: AppShellProps) {
   const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Show loading screen during sign out to prevent flash
+  if (isSigningOut) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Signing out...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Delete dialogs state
   const [deleteDialog, setDeleteDialog] = useState<{
