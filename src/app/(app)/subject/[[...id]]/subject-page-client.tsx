@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
@@ -38,10 +38,6 @@ import { useSubject, useUpdateSubject, useDeleteSubject } from '@/hooks/use-subj
 import { useSubjectTasks, useCreateTask } from '@/hooks/use-tasks';
 import { parseTaskInput } from '@/lib/date-parser';
 
-interface SubjectPageProps {
-  params: { id: string };
-}
-
 const containerVariants = {
   hidden: { opacity: 0 },
   show: {
@@ -55,15 +51,21 @@ const itemVariants = {
   show: { opacity: 1, y: 0 }
 };
 
-export default function SubjectPage({ params }: SubjectPageProps) {
+export default function SubjectPage() {
   const router = useRouter();
+  const params = useParams();
+
+  // Extract ID from catch-all params
+  const idArray = params.id as string[] | undefined;
+  const subjectId = idArray?.[0] || '';
+
   const [newTask, setNewTask] = useState('');
   const [scratchpad, setScratchpad] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { data: subject, isLoading: subjectLoading } = useSubject(params.id);
-  const { data: tasks } = useSubjectTasks(params.id);
+  const { data: subject, isLoading: subjectLoading } = useSubject(subjectId);
+  const { data: tasks } = useSubjectTasks(subjectId);
   const createTask = useCreateTask();
   const updateSubject = useUpdateSubject();
   const deleteSubject = useDeleteSubject();
@@ -101,7 +103,7 @@ export default function SubjectPage({ params }: SubjectPageProps) {
       await createTask.mutateAsync({
         title: parsed.title || newTask,
         do_date: parsed.date ? format(parsed.date, 'yyyy-MM-dd') : null,
-        subject_id: params.id,
+        subject_id: subjectId,
       });
 
       toast.success('Task added', {
@@ -139,6 +141,28 @@ export default function SubjectPage({ params }: SubjectPageProps) {
       });
     }
   };
+
+  // Handle no ID provided
+  if (!subjectId) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="flex items-center justify-center h-full"
+      >
+        <EmptyState
+          type="folder"
+          title="No subject selected"
+          description="Please select a subject from the sidebar."
+          action={
+            <Button onClick={() => router.push('/')}>
+              Go to Dashboard
+            </Button>
+          }
+        />
+      </motion.div>
+    );
+  }
 
   // Separate tasks by status
   const todoTasks = tasks?.filter((t) => t.status === 'todo') || [];

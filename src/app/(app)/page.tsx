@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useEffect, useState, useCallback } from 'react';
+import { useMemo, useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, isBefore, startOfDay, addDays, subDays, isToday, isTomorrow, isYesterday } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -41,6 +41,7 @@ import { TaskWithRelations, Theme, Task, Category } from '@/types/database';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { usePowerSyncState, usePowerSyncReady } from '@/providers/powersync-provider';
 
 type FilterType = 'all' | 'todo' | 'waiting' | 'inactive';
 
@@ -98,12 +99,72 @@ export default function DailyBriefPage() {
   const [themeFilter, setThemeFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
 
-  const { data: tasks, isLoading: tasksLoading } = useDailyBriefTasks(selectedDate);
+  const { data: tasks, isLoading: tasksLoading, isFetching } = useDailyBriefTasks(selectedDate);
   const { data: waitingFor } = useWaitingForTasks();
   const { data: zombies } = useZombieSubjects();
   const { data: categories } = useCategories();
   const { data: themes } = useThemes();
   const updateTask = useUpdateTask();
+
+  // PowerSync state - detect initial sync
+  const { lastSyncedAt, isSyncing } = usePowerSyncState();
+  const isPowerSyncReady = usePowerSyncReady();
+  // True when PowerSync is active but hasn't completed first sync yet
+  const isInitialSync = isPowerSyncReady && (isSyncing || !lastSyncedAt);
+
+  // Keep track of previous tasks to avoid flash during refetch
+  const prevTasksRef = useRef<typeof tasks>(undefined);
+  const hasEverHadTasks = useRef(false);
+
+  // Update refs when we get tasks
+  useEffect(() => {
+    if (tasks && tasks.length > 0) {
+      prevTasksRef.current = tasks;
+      hasEverHadTasks.current = true;
+    }
+  }, [tasks]);
+
+  // Use previous tasks during refetch if current is empty but we had tasks before
+  const displayTasks = useMemo(() => {
+    if (tasks && tasks.length > 0) return tasks;
+    if (isFetching && hasEverHadTasks.current && prevTasksRef.current) {
+      return prevTasksRef.current;
+    }
+    return tasks;
+  }, [tasks, isFetching]);
+
+  // Track if initial data has been loaded (to avoid showing empty state during initial fetch)
+  const [isReady, setIsReady] = useState(false);
+  const mountedAt = useRef(Date.now());
+
+  useEffect(() => {
+    // If we have tasks, we're definitely ready
+    if (displayTasks && displayTasks.length > 0) {
+      setIsReady(true);
+      return;
+    }
+
+    // If PowerSync is doing initial sync, wait for it
+    if (isInitialSync) {
+      return;
+    }
+
+    // If fetching and we had tasks before, don't change ready state
+    if (isFetching && hasEverHadTasks.current) {
+      return;
+    }
+
+    // Loading finished with no tasks
+    if (!tasksLoading && displayTasks !== undefined) {
+      // If less than 800ms since mount, wait a bit more to avoid flash
+      const elapsed = Date.now() - mountedAt.current;
+      if (elapsed < 800) {
+        const timer = setTimeout(() => setIsReady(true), 800 - elapsed);
+        return () => clearTimeout(timer);
+      }
+      setIsReady(true);
+    }
+  }, [displayTasks, tasksLoading, isInitialSync, isFetching]);
 
   // Cascade filter: themes filtered by category
   const filteredThemeOptions = useMemo(() => {
@@ -161,10 +222,10 @@ export default function DailyBriefPage() {
   }, [selectedTask, updateTask]);
 
   const { overdueTasks, groupedByCategory } = useMemo(() => {
-    if (!tasks) return { overdueTasks: [], groupedByCategory: [] };
+    if (!displayTasks) return { overdueTasks: [], groupedByCategory: [] };
 
     // Apply filters first
-    const filteredTasks = tasks.filter((task) => {
+    const filteredTasks = displayTasks.filter((task) => {
       // Category filter
       if (categoryFilter !== 'all' && task.category?.id !== categoryFilter) {
         return false;
@@ -240,9 +301,9 @@ export default function DailyBriefPage() {
       });
 
     return { overdueTasks: sortTasks(overdue), groupedByCategory: result };
-  }, [tasks, selectedDate, categoryFilter, themeFilter, priorityFilter]);
+  }, [displayTasks, selectedDate, categoryFilter, themeFilter, priorityFilter]);
 
-  const totalTasks = tasks?.length || 0;
+  const totalTasks = displayTasks?.length || 0;
   const overdueCount = overdueTasks.length;
   const waitingCount = waitingFor?.length || 0;
   const zombieCount = zombies?.length || 0;
@@ -256,8 +317,8 @@ export default function DailyBriefPage() {
     return () => { document.title = 'Sederize - Order from Chaos'; };
   }, [totalTasks]);
 
-  // Only show skeleton on initial load, not on refetch
-  if (tasksLoading && !tasks) {
+  // Show skeleton until first load completes
+  if (!isReady) {
     return <SkeletonPage />;
   }
 
@@ -535,8 +596,8 @@ export default function DailyBriefPage() {
         )}
       </AnimatePresence>
 
-      {/* Empty State - Show when filter is 'all' or 'todo' and no tasks */}
-      {totalTasks === 0 && (activeFilter === 'all' || activeFilter === 'todo') && (
+      {/* Empty State - Show when filter is 'all' or 'todo' and no tasks (only after loading and sync) */}
+      {totalTasks === 0 && !tasksLoading && !isFetching && !isInitialSync && (activeFilter === 'all' || activeFilter === 'todo') && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

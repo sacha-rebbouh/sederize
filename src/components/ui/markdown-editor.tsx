@@ -15,6 +15,20 @@ interface MarkdownEditorProps {
   isSaving?: boolean;
 }
 
+// Sanitize URLs to prevent XSS (javascript:, data:, vbscript:)
+function sanitizeUrl(url: string): string {
+  const trimmedUrl = url.trim().toLowerCase();
+  const dangerousProtocols = ['javascript:', 'data:', 'vbscript:', 'file:'];
+
+  for (const protocol of dangerousProtocols) {
+    if (trimmedUrl.startsWith(protocol)) {
+      return '#';
+    }
+  }
+
+  return url;
+}
+
 // Simple markdown to HTML parser
 function parseMarkdown(text: string): string {
   if (!text) return '';
@@ -36,10 +50,10 @@ function parseMarkdown(text: string): string {
     .replace(/_([^_]+)_/g, '<em class="italic">$1</em>')
     // Inline code (`code`)
     .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-muted font-mono text-sm">$1</code>')
-    // Links [text](url)
+    // Links [text](url) - sanitize URLs to prevent XSS
     .replace(
       /\[([^\]]+)\]\(([^)]+)\)/g,
-      '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-primary underline hover:no-underline">$1</a>'
+      (_match, text, url) => `<a href="${sanitizeUrl(url)}" target="_blank" rel="noopener noreferrer" class="text-primary underline hover:no-underline">${text}</a>`
     )
     // Unordered lists (- item)
     .replace(/^- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')

@@ -1,5 +1,109 @@
 # Changes Log - Sederize
 
+## 2026-01-20 19:15 - Fix Empty State Flash During Refetch (v4)
+
+### Fichiers modifiés
+- `src/app/(app)/page.tsx` - Fix robuste avec garde des données précédentes
+
+### Changements
+- Le dashboard avec tâches flashait vers l'empty state puis revenait pendant les refetches
+- Cause: Les données devenaient temporairement vides pendant un refetch PowerSync/Supabase
+- Solution:
+  - Ajout de `isFetching` depuis le hook pour détecter les refetches
+  - `prevTasksRef` garde les données précédentes en mémoire
+  - `hasEverHadTasks` track si on a déjà eu des tâches
+  - `displayTasks` utilise les données précédentes si refetch en cours avec données vides
+  - L'empty state ne s'affiche plus si `isFetching` est true
+  - Tous les calculs utilisent maintenant `displayTasks` au lieu de `tasks`
+
+---
+
+## 2026-01-20 18:45 - Capacitor Static Export for Offline iOS Build
+
+### Fichiers modifiés
+- `next.config.mjs` - Ajout `output: 'export'` et `trailingSlash: true` (suppression `headers()` incompatible)
+- `capacitor.config.json` - Suppression `server.url` pour utiliser les assets bundlés
+- `src/app/(app)/subject/[id]/page.tsx` → `src/app/(app)/subject/[[...id]]/page.tsx` - Conversion en catch-all route
+- `src/app/auth/callback/route.ts` → `src/app/auth/callback/page.tsx` - Conversion API route en page client-side
+
+### Fichiers créés
+- `src/app/(app)/subject/[[...id]]/subject-page-client.tsx` - Composant client pour la page subject
+
+### Changements
+- **Static Export activé** - `output: 'export'` permet de générer des fichiers statiques dans `/out`
+- **Route dynamique convertie** - `/subject/[id]` devenu `/subject/[[...id]]` (catch-all optionnel) avec `generateStaticParams()` pour compatibilité export
+- **Auth callback client-side** - Le callback OAuth de Supabase fonctionne maintenant entièrement côté client
+- **Assets bundlés dans iOS** - Capacitor utilise maintenant les fichiers du dossier `out/` au lieu d'un serveur distant
+- **PowerSync fonctionnel offline** - Avec les assets bundlés, l'UI charge sans internet et PowerSync gère la sync des données
+
+### Limitations
+- Le deep linking direct vers `/subject/abc123` ne fonctionne pas (pas de fichier généré pour chaque ID)
+- La navigation normale fonctionne (Dashboard → Subject via client-side routing)
+- Pour le deep linking, envisager hash routing (`/#/subject/abc`) ou un handler iOS custom
+
+### Build workflow
+```bash
+npm run build          # Génère les fichiers dans /out
+npx cap sync ios       # Copie les assets dans le projet iOS
+# Puis build dans Xcode
+```
+
+---
+
+## 2026-01-20 16:15 - Fix Login Page Flash After Sign-In
+
+### Fichiers modifiés
+- `src/app/(auth)/login/page.tsx` - Fix flash formulaire vide après login
+
+### Changements
+- Le formulaire de login se vidait et s'affichait pendant ~2 secondes après un login réussi avant la redirection
+- Cause: Le composant se remontait complètement (états réinitialisés) quand onAuthStateChange se déclenchait
+- Solution:
+  - Utilisation de `useAuth()` pour accéder à l'état d'authentification global
+  - Affichage du spinner si: `authLoading` OU `user` existe OU `loading` (login en cours)
+  - Le formulaire ne s'affiche QUE si: auth chargé ET pas d'utilisateur ET pas de login en cours
+  - Message contextuel: "Signing in..." pendant le login, "Redirecting..." quand user est authentifié
+
+---
+
+## 2026-01-20 16:45 - Fix Empty State Flash on Initial Load (v3)
+
+### Fichiers modifiés
+- `src/app/(app)/page.tsx` - Fix robuste avec état `isReady` et délai minimum
+
+### Changements
+- L'empty state "You're all caught up" s'affichait brièvement pendant le chargement initial
+- Cause: PowerSync/Supabase retourne `isLoading: false` très rapidement avec données vides
+- Solution robuste multi-couches:
+  - État `isReady` qui contrôle l'affichage du skeleton vs contenu
+  - Détection sync initiale PowerSync via `isSyncing || !lastSyncedAt`
+  - Si des tâches existent → prêt immédiatement
+  - Si PowerSync fait la sync initiale → on attend
+  - Si loading terminé avec 0 tâches mais < 800ms depuis mount → délai minimum
+  - Le skeleton s'affiche jusqu'à ce que `isReady` soit true
+
+---
+
+## 2026-01-20 14:30 - Security Hardening & Error Handling
+
+### Fichiers créés
+- `src/app/global-error.tsx` - Error boundary global Next.js
+- `src/app/not-found.tsx` - Page 404 personnalisée
+
+### Fichiers modifiés
+- `next.config.mjs` - Ajout des security headers (X-Frame-Options, CSP, etc.)
+- `src/components/ui/markdown-editor.tsx` - Fix vulnérabilité XSS (sanitization URLs)
+- `src/app/auth/callback/route.ts` - Ajout error handling OAuth complet
+
+### Changements
+- **Security Headers** : X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, Permissions-Policy
+- **XSS Prevention** : Ajout fonction `sanitizeUrl()` qui bloque javascript:, data:, vbscript:, file:
+- **Error Pages** : global-error.tsx pour erreurs serveur, not-found.tsx pour 404
+- **Auth Callback** : Gestion erreurs OAuth provider, missing code, session exchange errors
+- **Audit effectué** : RLS policies OK, middleware OK, .env.local non tracké, TypeScript OK
+
+---
+
 ## 2026-01-19 01:00 - QuickAdd uses WaterfallPicker + Modal Fix
 
 ### Fichiers modifiés
