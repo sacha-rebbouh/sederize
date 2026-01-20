@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   CalendarDays,
   Inbox,
@@ -48,7 +48,6 @@ import { Layers, FolderPlus, Palette } from 'lucide-react';
 import { useCategoriesWithThemes, CategoryWithThemes } from '@/hooks/use-categories';
 import { useActiveSubjects, useZombieSubjects } from '@/hooks/use-subjects';
 import { useInboxCount, useWaitingForCount } from '@/hooks/use-tasks';
-import { useAuth } from '@/providers/auth-provider';
 import { useState, useCallback, useMemo } from 'react';
 import { Theme, SubjectWithTheme } from '@/types/database';
 import { SyncIndicator } from '@/components/ui/sync-status';
@@ -119,7 +118,7 @@ export function Sidebar({
   onEditSubject,
 }: SidebarProps) {
   const pathname = usePathname();
-  const { signOut } = useAuth();
+  const router = useRouter();
   const { data: categories } = useCategoriesWithThemes();
   const { data: subjects } = useActiveSubjects();
   const { data: zombies } = useZombieSubjects();
@@ -626,7 +625,7 @@ export function Sidebar({
                 <Button
                   variant="ghost"
                   className="w-full justify-center text-muted-foreground"
-                  onClick={signOut}
+                  onClick={() => router.push('/signout')}
                 >
                   <LogOut className="h-4 w-4" />
                 </Button>
@@ -645,7 +644,7 @@ export function Sidebar({
             <Button
               variant="ghost"
               className="w-full justify-start gap-2 text-muted-foreground"
-              onClick={signOut}
+              onClick={() => router.push('/signout')}
             >
               <LogOut className="h-4 w-4" />
               Sign Out

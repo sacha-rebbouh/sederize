@@ -1,5 +1,137 @@
 # Changes Log - Sederize
 
+## 2026-01-20 21:00 - Nouveau Logo Sederize
+
+### Fichiers créés/modifiés
+- `public/sederize-original.png` - Logo source haute résolution
+- `public/favicon-16x16.png` - Favicon 16x16
+- `public/favicon-32x32.png` - Favicon 32x32
+- `public/favicon-48x48.png` - Favicon 48x48
+- `public/apple-touch-icon.png` - Apple Touch Icon 180x180
+- `public/icon-192.png` - PWA icon 192x192
+- `public/icon-512.png` - PWA icon 512x512
+- `public/icon-1024.png` - App Store icon 1024x1024
+- `src/app/layout.tsx` - Ajout metadata icons (favicon + apple touch icon)
+
+### Design
+- Logo : S minimaliste style Helvetica/Swiss grotesque
+- Fond slate #0f172a avec S blanc/crème
+- Flat terminals, courbes contrôlées, équilibre premium
+- Généré via Gemini avec prompt itératif
+
+---
+
+## 2026-01-20 20:45 - Forgot Password + Change Password
+
+### Fichiers créés
+- `src/app/(auth)/forgot-password/page.tsx` - Page "Forgot password?" avec envoi d'email
+- `src/app/(auth)/reset-password/page.tsx` - Page pour définir le nouveau password après clic sur le lien email
+
+### Fichiers modifiés
+- `src/app/(auth)/login/page.tsx` - Ajout lien "Forgot password?"
+- `src/app/(app)/settings/page.tsx` - Nouvelle section "Security" avec formulaire change password
+
+### Fonctionnalités
+1. **Forgot Password** (page login)
+   - Lien "Forgot password?" sous le champ password
+   - Page `/forgot-password` → entre email → reçoit lien par email
+   - Page `/reset-password` → entre nouveau password
+
+2. **Change Password** (settings)
+   - Section "Security" dans les settings
+   - Formulaire nouveau password + confirmation
+   - Appel `supabase.auth.updateUser({ password })`
+
+### Config Supabase requise
+- Ajouter `https://ton-domaine.com/reset-password` dans Authentication > URL Configuration > Redirect URLs
+
+---
+
+## 2026-01-20 20:35 - Suppression Google OAuth (non configuré)
+
+### Fichiers modifiés
+- `src/app/(auth)/login/page.tsx` - Suppression bouton Google + fonction handleGoogleLogin
+- `src/app/(auth)/signup/page.tsx` - Suppression bouton Google + fonction handleGoogleSignup
+
+### Changements
+- Google OAuth n'était pas configuré (nécessite Google Cloud Console + Supabase Dashboard)
+- Boutons "Continue with Google" retirés des pages login et signup
+- La page `/auth/callback` reste en place pour une future réactivation si besoin
+
+---
+
+## 2026-01-20 20:30 - PWA: Texte navbar + Footer menu fixe
+
+### Fichiers modifiés
+- `src/components/layout/bottom-nav.tsx` - Texte des boutons de `text-[10px]` à `text-xs` (12px)
+- `src/components/layout/mobile-menu.tsx` - Footer (Settings + Sign Out) toujours visible avec flex layout
+
+### Changements
+1. **Texte trop petit dans la navbar** : Augmenté de 10px à 12px pour meilleure lisibilité sur PWA
+2. **Sign Out invisible** : Restructuré le mobile-menu avec flex pour garantir que le footer reste toujours visible en bas, même si le contenu scrollable est long
+
+---
+
+## 2026-01-20 20:20 - Délai 1s sur Login/Logout pour sync DB
+
+### Fichiers modifiés
+- `src/app/(auth)/signout/page.tsx` - Délai réduit de 1.5s à 1s
+- `src/app/(auth)/login/page.tsx` - Ajout délai 1s après login réussi avant redirection
+
+### Changements
+- Les tâches flashaient/se rechargeaient après l'arrivée sur le dashboard
+- Cause: PowerSync n'avait pas fini de sync les données quand le dashboard s'affichait
+- Solution: Délai de 1s sur login et logout pour laisser le temps à la DB de sync
+- Test en cours pour voir si 1s suffit
+
+---
+
+## 2026-01-20 20:10 - Fix Sign Out Flash (Page dédiée)
+
+### Fichiers créés
+- `src/app/(auth)/signout/page.tsx` - Page dédiée pour le sign out avec loader 1.5s
+
+### Fichiers modifiés
+- `src/providers/auth-provider.tsx` - Simplifié (suppression de signOut, isSigningOut)
+- `src/components/layout/sidebar.tsx` - Navigation vers /signout au lieu d'appeler signOut
+- `src/components/layout/mobile-menu.tsx` - Navigation vers /signout au lieu d'appeler signOut
+
+### Changements
+- Micro-flash du dashboard visible pendant le sign out
+- Solution: Page dédiée `/signout` (même pattern que login)
+  1. Clic sur Sign Out → navigation vers `/signout`
+  2. Page affiche un loader "Signing out..."
+  3. SignOut exécuté immédiatement
+  4. Attente de 1.5s pour transition douce
+  5. Redirection vers `/login`
+- Avantages:
+  - Évite le flash du dashboard (on est déjà sur une autre page)
+  - Transition visuelle propre
+  - Pas de problème avec le real-time de Supabase
+
+---
+
+## 2026-01-20 19:50 - Fix Daily Brief Header Flash on Login
+
+### Fichiers modifiés
+- `src/app/(app)/page.tsx` - Sparkles en position absolute, délai minimum avant empty state
+- `src/components/ui/skeleton-card.tsx` - SkeletonHeader centré pour matcher le layout réel
+
+### Changements
+1. **Titre qui se décalait à gauche puis revenait au centre**
+   - Cause: Les Sparkles apparaissaient/disparaissaient et changeaient la largeur du conteneur flex
+   - Solution: Sparkles maintenant en `position: absolute` à droite du titre, ne modifient plus le layout
+
+2. **Flash skeleton → contenu**
+   - Cause: Le SkeletonHeader n'était pas centré, contrairement à la vraie page
+   - Solution: Ajout `text-center flex flex-col items-center` sur SkeletonHeader
+
+3. **Sparkles qui flashaient avant les données**
+   - Cause: `lastSyncedAt` de PowerSync set avant que les données arrivent réellement
+   - Solution: Délai minimum de 1.5s avant d'afficher l'empty state si `totalTasks === 0`
+
+---
+
 ## 2026-01-20 19:15 - Fix Empty State Flash During Refetch (v4)
 
 ### Fichiers modifiés

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Settings,
   LogOut,
@@ -22,7 +23,6 @@ import {
 } from '@/components/ui/sheet';
 import { useThemes } from '@/hooks/use-themes';
 import { useActiveSubjects, useZombieSubjects } from '@/hooks/use-subjects';
-import { useAuth } from '@/providers/auth-provider';
 
 interface MobileMenuProps {
   open: boolean;
@@ -30,7 +30,7 @@ interface MobileMenuProps {
 }
 
 export function MobileMenu({ open, onOpenChange }: MobileMenuProps) {
-  const { signOut } = useAuth();
+  const router = useRouter();
   const { data: themes } = useThemes();
   const { data: subjects } = useActiveSubjects();
   const { data: zombies } = useZombieSubjects();
@@ -51,14 +51,14 @@ export function MobileMenu({ open, onOpenChange }: MobileMenuProps) {
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-80 p-0"
+        className="w-80 p-0 flex flex-col"
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
-        <SheetHeader className="p-4 border-b">
+        <SheetHeader className="p-4 border-b flex-shrink-0">
           <SheetTitle>Menu</SheetTitle>
         </SheetHeader>
 
-        <ScrollArea className="flex-1 h-[calc(100vh-140px-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))]">
+        <ScrollArea className="flex-1 min-h-0">
           <div className="p-4 space-y-4">
             {/* Quick Links */}
             <div>
@@ -136,10 +136,10 @@ export function MobileMenu({ open, onOpenChange }: MobileMenuProps) {
           </div>
         </ScrollArea>
 
-        <Separator />
+        <Separator className="flex-shrink-0" />
 
         <div
-          className="p-4 space-y-2"
+          className="p-4 space-y-2 flex-shrink-0"
           style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
         >
           <Link href="/settings" onClick={handleNavigation}>
@@ -153,7 +153,7 @@ export function MobileMenu({ open, onOpenChange }: MobileMenuProps) {
             className="w-full justify-start gap-2 text-muted-foreground"
             onClick={() => {
               handleNavigation();
-              signOut();
+              router.push('/signout');
             }}
           >
             <LogOut className="h-4 w-4" />

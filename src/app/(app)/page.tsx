@@ -135,11 +135,19 @@ export default function DailyBriefPage() {
 
   // Track if initial data has been loaded (to avoid showing empty state during initial fetch)
   const [isReady, setIsReady] = useState(false);
-  const mountedAt = useRef(Date.now());
+  const isReadyRef = useRef(false);
+  const mountTimeRef = useRef(Date.now());
 
   useEffect(() => {
+    // Once ready, always ready (prevents flash on re-mount)
+    if (isReadyRef.current) {
+      if (!isReady) setIsReady(true);
+      return;
+    }
+
     // If we have tasks, we're definitely ready
     if (displayTasks && displayTasks.length > 0) {
+      isReadyRef.current = true;
       setIsReady(true);
       return;
     }
@@ -154,17 +162,24 @@ export default function DailyBriefPage() {
       return;
     }
 
-    // Loading finished with no tasks
+    // Loading finished with no tasks - but wait a minimum time to avoid false empty state
     if (!tasksLoading && displayTasks !== undefined) {
-      // If less than 800ms since mount, wait a bit more to avoid flash
-      const elapsed = Date.now() - mountedAt.current;
-      if (elapsed < 800) {
-        const timer = setTimeout(() => setIsReady(true), 800 - elapsed);
-        return () => clearTimeout(timer);
+      const timeSinceMount = Date.now() - mountTimeRef.current;
+      const MIN_WAIT_TIME = 1500; // Wait at least 1.5s before showing empty state
+
+      if (timeSinceMount >= MIN_WAIT_TIME) {
+        isReadyRef.current = true;
+        setIsReady(true);
+      } else {
+        // Schedule ready state after remaining time
+        const timeout = setTimeout(() => {
+          isReadyRef.current = true;
+          setIsReady(true);
+        }, MIN_WAIT_TIME - timeSinceMount);
+        return () => clearTimeout(timeout);
       }
-      setIsReady(true);
     }
-  }, [displayTasks, tasksLoading, isInitialSync, isFetching]);
+  }, [displayTasks, tasksLoading, isInitialSync, isFetching, isReady]);
 
   // Cascade filter: themes filtered by category
   const filteredThemeOptions = useMemo(() => {
@@ -317,7 +332,7 @@ export default function DailyBriefPage() {
     return () => { document.title = 'Sederize - Order from Chaos'; };
   }, [totalTasks]);
 
-  // Show skeleton until first load completes
+  // Show skeleton until initial data is ready
   if (!isReady) {
     return <SkeletonPage />;
   }
@@ -334,13 +349,14 @@ export default function DailyBriefPage() {
         animate={{ opacity: 1, y: 0 }}
         className="text-center space-y-2"
       >
-        <div className="flex items-center justify-center gap-2">
+        <div className="relative flex items-center justify-center">
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Daily Brief</h1>
           {totalTasks === 0 && isToday(selectedDate) && (
             <motion.span
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
               transition={{ type: 'spring', delay: 0.3 }}
+              className="absolute -right-8 md:-right-9"
             >
               <Sparkles className="h-6 w-6 text-amber-500" />
             </motion.span>
@@ -597,7 +613,7 @@ export default function DailyBriefPage() {
       </AnimatePresence>
 
       {/* Empty State - Show when filter is 'all' or 'todo' and no tasks (only after loading and sync) */}
-      {totalTasks === 0 && !tasksLoading && !isFetching && !isInitialSync && (activeFilter === 'all' || activeFilter === 'todo') && (
+      {totalTasks === 0 && (activeFilter === 'all' || activeFilter === 'todo') && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

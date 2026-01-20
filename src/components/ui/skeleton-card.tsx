@@ -78,7 +78,7 @@ export function SkeletonStats() {
 
 export function SkeletonHeader() {
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 text-center flex flex-col items-center">
       <div className="h-8 w-48 bg-muted rounded-lg animate-pulse" />
       <div className="h-4 w-32 bg-muted rounded animate-pulse" />
     </div>

@@ -1,11 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Static export for Capacitor bundled assets (offline-first with PowerSync)
-  output: 'export',
-  trailingSlash: true,
-
-  // Note: Security headers moved to vercel.json for Vercel deployment
-  // (headers() not supported with output: 'export')
+  // Note: For Capacitor iOS build only, uncomment these:
+  // output: 'export',
+  // trailingSlash: true,
 
   // Optimize package imports for tree-shaking
   // This transforms barrel file imports to direct imports at build time

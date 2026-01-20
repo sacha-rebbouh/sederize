@@ -81,7 +81,7 @@ export function BottomNav({ onMenuClick }: BottomNavProps) {
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] font-medium">{item.title}</span>
+                <span className="text-xs font-medium">{item.title}</span>
               </Button>
             </Link>
           );
@@ -92,7 +92,7 @@ export function BottomNav({ onMenuClick }: BottomNavProps) {
           onClick={onMenuClick}
         >
           <Menu className="h-5 w-5" />
-          <span className="text-[10px] font-medium">More</span>
+          <span className="text-xs font-medium">More</span>
         </Button>
       </div>
     </nav>
