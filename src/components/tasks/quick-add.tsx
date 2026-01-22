@@ -298,7 +298,7 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
                         className="w-full"
                         onClick={() => setDoTime('')}
                       >
-                        Effacer l'heure
+                        Effacer l&apos;heure
                       </Button>
                     )}
                   </div>

@@ -470,7 +470,7 @@ export default function AllTasksPage() {
             <SelectContent>
               <SelectItem value="all">Toutes les dates</SelectItem>
               <SelectItem value="overdue">En retard</SelectItem>
-              <SelectItem value="today">Aujourd'hui</SelectItem>
+              <SelectItem value="today">Aujourd&apos;hui</SelectItem>
               <SelectItem value="tomorrow">Demain</SelectItem>
               <SelectItem value="week">Cette semaine</SelectItem>
               <SelectItem value="later">Plus tard</SelectItem>

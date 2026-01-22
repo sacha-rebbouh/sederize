@@ -320,7 +320,7 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
           <div className="space-y-2">
             <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <CalendarIcon className="h-4 w-4" />
-              Date d'echeance
+              Date d&apos;échéance
             </label>
             {isEditing ? (
               <Popover>

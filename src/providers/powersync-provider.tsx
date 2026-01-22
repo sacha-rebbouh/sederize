@@ -132,7 +132,7 @@ export function PowerSyncProvider({ children }: { children: ReactNode }) {
 
         try {
           await Promise.race([initPromise, timeoutPromise]);
-        } catch (e) {
+        } catch {
           console.warn('[PowerSync] init() failed or timed out, running in online-only mode');
           // Don't throw - allow app to work without PowerSync (e.g., Brave browser)
           return;

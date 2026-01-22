@@ -92,7 +92,7 @@ export function SnoozePopover({ taskId, taskDate, className }: SnoozePopoverProp
         {!showCalendar ? (
           <div className="p-2 space-y-1">
             <p className="text-xs font-medium text-muted-foreground px-2 py-1">
-              Reporter jusqu'a
+              Reporter jusqu&apos;à
             </p>
             {quickOptions.map((option) => (
               <Button

@@ -211,7 +211,7 @@ export default function SettingsPage() {
             <Sun className="h-5 w-5" />
             Apparence
           </CardTitle>
-          <CardDescription>Personnalisez l'apparence de Sederize</CardDescription>
+          <CardDescription>Personnalisez l&apos;apparence de Sederize</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Theme Mode */}
@@ -243,7 +243,7 @@ export default function SettingsPage() {
             <div>
               <Label>Vue par defaut</Label>
               <p className="text-sm text-muted-foreground">
-                La vue affichee a l'ouverture de l'application
+                La vue affichée à l&apos;ouverture de l&apos;application
               </p>
             </div>
             <Select
@@ -289,7 +289,7 @@ export default function SettingsPage() {
 
           {preferences.email_digest_enabled && (
             <div className="flex items-center justify-between pl-4 border-l-2">
-              <Label>Heure d'envoi</Label>
+              <Label>Heure d&apos;envoi</Label>
               <Input
                 type="time"
                 value={preferences.email_digest_time}

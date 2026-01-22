@@ -52,8 +52,8 @@ export function WaitingForDialog({
             Mettre en attente
           </DialogTitle>
           <DialogDescription>
-            Cette tache sera retiree de votre Brief du jour jusqu'a ce que vous la marquiez
-            comme active a nouveau.
+            Cette tâche sera retirée de votre Brief du jour jusqu&apos;à ce que vous la marquiez
+            comme active à nouveau.
           </DialogDescription>
         </DialogHeader>
 
