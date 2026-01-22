@@ -49,24 +49,24 @@ export function WaitingForDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Hourglass className="h-5 w-5 text-amber-500" />
-            Set Waiting For
+            Mettre en attente
           </DialogTitle>
           <DialogDescription>
-            This task will be removed from your Daily Brief until you mark it as
-            active again.
+            Cette tache sera retiree de votre Brief du jour jusqu'a ce que vous la marquiez
+            comme active a nouveau.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Input
-              placeholder="Who or what are you waiting for?"
+              placeholder="De qui ou quoi attendez-vous ?"
               value={note}
               onChange={(e) => setNote(e.target.value)}
               autoFocus
             />
             <p className="text-xs text-muted-foreground mt-1">
-              e.g., &quot;Client feedback&quot;, &quot;John&apos;s approval&quot;, &quot;Bank transfer&quot;
+              Ex: &quot;Retour client&quot;, &quot;Validation de Jean&quot;, &quot;Virement bancaire&quot;
             </p>
           </div>
 
@@ -76,14 +76,14 @@ export function WaitingForDialog({
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              Annuler
             </Button>
             <Button
               type="submit"
               disabled={!note.trim() || setWaitingFor.isPending}
               className="bg-amber-500 hover:bg-amber-600"
             >
-              Set Waiting
+              Mettre en attente
             </Button>
           </DialogFooter>
         </form>

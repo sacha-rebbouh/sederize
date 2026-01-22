@@ -45,6 +45,7 @@ import { useCategories, useDeleteCategory, useUpdateCategory } from '@/hooks/use
 import { useLocalPreferences } from '@/hooks/use-preferences';
 import { useTheme } from '@/providers/theme-provider';
 import { cn } from '@/lib/utils';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 const THEME_COLORS = [
   '#3b82f6', // blue
@@ -60,14 +61,14 @@ const THEME_COLORS = [
 ];
 
 const KEYBOARD_SHORTCUTS = [
-  { action: 'Command Palette', keys: ['Cmd', 'K'] },
-  { action: 'Create Task', keys: ['C'] },
-  { action: 'Daily Brief', keys: ['D'] },
-  { action: 'Inbox', keys: ['I'] },
-  { action: 'Calendar', keys: ['L'] },
+  { action: 'Palette de commandes', keys: ['Cmd', 'K'] },
+  { action: 'Creer une tache', keys: ['C'] },
+  { action: 'Brief du jour', keys: ['D'] },
+  { action: 'Boite de reception', keys: ['I'] },
+  { action: 'Calendrier', keys: ['L'] },
   { action: 'Kanban', keys: ['B'] },
-  { action: 'All Tasks', keys: ['T'] },
-  { action: 'Pending', keys: ['P'] },
+  { action: 'Toutes les taches', keys: ['T'] },
+  { action: 'En attente', keys: ['P'] },
   { action: 'Archives', keys: ['A'] },
 ];
 
@@ -87,6 +88,10 @@ export default function SettingsPage() {
   const [editTitle, setEditTitle] = useState('');
   const [editColor, setEditColor] = useState('');
 
+  // Delete confirmation dialogs
+  const [deleteThemeDialog, setDeleteThemeDialog] = useState<{open: boolean, id: string, title: string}>({open: false, id: '', title: ''});
+  const [deleteCategoryDialog, setDeleteCategoryDialog] = useState<{open: boolean, id: string, title: string}>({open: false, id: '', title: ''});
+
   // Change password state
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -102,17 +107,17 @@ export default function SettingsPage() {
     setPasswordSuccess(false);
 
     if (!currentPassword) {
-      setPasswordError('Current password is required');
+      setPasswordError('Le mot de passe actuel est requis');
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordError('New passwords do not match');
+      setPasswordError('Les nouveaux mots de passe ne correspondent pas');
       return;
     }
 
     if (newPassword.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
+      setPasswordError('Le mot de passe doit contenir au moins 6 caracteres');
       return;
     }
 
@@ -126,7 +131,7 @@ export default function SettingsPage() {
       });
 
       if (signInError) {
-        setPasswordError('Current password is incorrect');
+        setPasswordError('Mot de passe actuel incorrect');
         setPasswordLoading(false);
         return;
       }
@@ -140,9 +145,9 @@ export default function SettingsPage() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      toast.success('Password updated successfully');
+      toast.success('Mot de passe mis a jour avec succes');
     } catch (err) {
-      setPasswordError(err instanceof Error ? err.message : 'Failed to update password');
+      setPasswordError(err instanceof Error ? err.message : 'Erreur lors de la mise a jour du mot de passe');
     } finally {
       setPasswordLoading(false);
     }
@@ -164,9 +169,7 @@ export default function SettingsPage() {
   };
 
   const handleDeleteTheme = (themeId: string, title: string) => {
-    if (confirm(`Delete "${title}"? This will also delete all subjects and tasks within it.`)) {
-      deleteTheme.mutate(themeId);
-    }
+    setDeleteThemeDialog({ open: true, id: themeId, title });
   };
 
   const handleStartCategoryEdit = (categoryId: string, currentTitle: string, currentColor: string) => {
@@ -185,14 +188,12 @@ export default function SettingsPage() {
   };
 
   const handleDeleteCategory = (categoryId: string, title: string) => {
-    if (confirm(`Supprimer "${title}" ? Les thèmes de cette catégorie deviendront non-catégorisés.`)) {
-      deleteCategory.mutate(categoryId);
-    }
+    setDeleteCategoryDialog({ open: true, id: categoryId, title });
   };
 
   const handleExportData = async () => {
     // TODO: Implement full data export
-    toast.success('Export feature coming soon!');
+    toast.success('Fonctionnalite d\'export bientot disponible !');
   };
 
   return (
@@ -200,7 +201,7 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="flex items-center gap-2">
         <SettingsIcon className="h-6 w-6" />
-        <h1 className="text-2xl md:text-3xl font-bold">Settings</h1>
+        <h1 className="text-2xl md:text-3xl font-bold">Parametres</h1>
       </div>
 
       {/* Appearance Section */}
@@ -208,9 +209,9 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Sun className="h-5 w-5" />
-            Appearance
+            Apparence
           </CardTitle>
-          <CardDescription>Customize how Sederize looks</CardDescription>
+          <CardDescription>Personnalisez l'apparence de Sederize</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Theme Mode */}
@@ -218,9 +219,9 @@ export default function SettingsPage() {
             <Label>Theme</Label>
             <div className="flex gap-2">
               {[
-                { value: 'light', icon: Sun, label: 'Light' },
-                { value: 'dark', icon: Moon, label: 'Dark' },
-                { value: 'system', icon: Monitor, label: 'System' },
+                { value: 'light', icon: Sun, label: 'Clair' },
+                { value: 'dark', icon: Moon, label: 'Sombre' },
+                { value: 'system', icon: Monitor, label: 'Systeme' },
               ].map((mode) => (
                 <Button
                   key={mode.value}
@@ -240,9 +241,9 @@ export default function SettingsPage() {
           {/* Default View */}
           <div className="flex items-center justify-between">
             <div>
-              <Label>Default View</Label>
+              <Label>Vue par defaut</Label>
               <p className="text-sm text-muted-foreground">
-                The view shown when you open the app
+                La vue affichee a l'ouverture de l'application
               </p>
             </div>
             <Select
@@ -253,9 +254,9 @@ export default function SettingsPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="daily-brief">Daily Brief</SelectItem>
-                <SelectItem value="inbox">Inbox</SelectItem>
-                <SelectItem value="calendar">Calendar</SelectItem>
+                <SelectItem value="daily-brief">Brief du jour</SelectItem>
+                <SelectItem value="inbox">Boite de reception</SelectItem>
+                <SelectItem value="calendar">Calendrier</SelectItem>
                 <SelectItem value="kanban">Kanban</SelectItem>
               </SelectContent>
             </Select>
@@ -270,14 +271,14 @@ export default function SettingsPage() {
             <Bell className="h-5 w-5" />
             Notifications
           </CardTitle>
-          <CardDescription>Manage email digests and reminders</CardDescription>
+          <CardDescription>Gerez les resumés par email et les rappels</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <Label>Daily Email Digest</Label>
+              <Label>Resume quotidien par email</Label>
               <p className="text-sm text-muted-foreground">
-                Receive a summary of your tasks each morning
+                Recevez un resume de vos taches chaque matin
               </p>
             </div>
             <Switch
@@ -288,7 +289,7 @@ export default function SettingsPage() {
 
           {preferences.email_digest_enabled && (
             <div className="flex items-center justify-between pl-4 border-l-2">
-              <Label>Digest Time</Label>
+              <Label>Heure d'envoi</Label>
               <Input
                 type="time"
                 value={preferences.email_digest_time}
@@ -325,9 +326,9 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Lock className="h-5 w-5" />
-            Security
+            Securite
           </CardTitle>
-          <CardDescription>Change your password</CardDescription>
+          <CardDescription>Changez votre mot de passe</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleChangePassword} className="space-y-4">
@@ -340,16 +341,16 @@ export default function SettingsPage() {
             {passwordSuccess && (
               <div className="p-3 text-sm text-green-600 bg-green-500/10 rounded-lg flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4" />
-                Password updated successfully
+                Mot de passe mis a jour avec succes
               </div>
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="current-password">Current Password</Label>
+              <Label htmlFor="current-password">Mot de passe actuel</Label>
               <Input
                 id="current-password"
                 type="password"
-                placeholder="Enter current password"
+                placeholder="Entrez le mot de passe actuel"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 required
@@ -359,11 +360,11 @@ export default function SettingsPage() {
             <Separator />
 
             <div className="space-y-2">
-              <Label htmlFor="new-password">New Password</Label>
+              <Label htmlFor="new-password">Nouveau mot de passe</Label>
               <Input
                 id="new-password"
                 type="password"
-                placeholder="Enter new password"
+                placeholder="Entrez le nouveau mot de passe"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
@@ -371,11 +372,11 @@ export default function SettingsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirm-password">Confirm New Password</Label>
+              <Label htmlFor="confirm-password">Confirmer le nouveau mot de passe</Label>
               <Input
                 id="confirm-password"
                 type="password"
-                placeholder="Confirm new password"
+                placeholder="Confirmez le nouveau mot de passe"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
@@ -386,10 +387,10 @@ export default function SettingsPage() {
               {passwordLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Updating...
+                  Mise a jour...
                 </>
               ) : (
-                'Update Password'
+                'Mettre a jour le mot de passe'
               )}
             </Button>
           </form>
@@ -426,11 +427,12 @@ export default function SettingsPage() {
                             <button
                               key={color}
                               className={cn(
-                                'h-6 w-6 rounded-md transition-transform',
+                                'h-6 w-6 rounded-md transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                                 editColor === color && 'ring-2 ring-offset-2 ring-primary scale-110'
                               )}
                               style={{ backgroundColor: color }}
                               onClick={() => setEditColor(color)}
+                              aria-label={`Couleur ${color}`}
                             />
                           ))}
                         </div>
@@ -445,14 +447,14 @@ export default function SettingsPage() {
                           autoFocus
                         />
                         <Button size="sm" onClick={() => handleSaveCategoryEdit(category.id)}>
-                          Save
+                          Enregistrer
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => setEditingCategory(null)}
                         >
-                          Cancel
+                          Annuler
                         </Button>
                       </>
                     ) : (
@@ -500,12 +502,12 @@ export default function SettingsPage() {
             <Palette className="h-5 w-5" />
             Themes
           </CardTitle>
-          <CardDescription>Manage your themes and their colors</CardDescription>
+          <CardDescription>Gerez vos themes et leurs couleurs</CardDescription>
         </CardHeader>
         <CardContent>
           {!themes || themes.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
-              No themes yet. Create one from the sidebar.
+              Aucun theme. Creez-en un depuis la sidebar.
             </p>
           ) : (
             <div className="space-y-3">
@@ -523,11 +525,12 @@ export default function SettingsPage() {
                             <button
                               key={color}
                               className={cn(
-                                'h-6 w-6 rounded-md transition-transform',
+                                'h-6 w-6 rounded-md transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                                 editColor === color && 'ring-2 ring-offset-2 ring-primary scale-110'
                               )}
                               style={{ backgroundColor: color }}
                               onClick={() => setEditColor(color)}
+                              aria-label={`Couleur ${color}`}
                             />
                           ))}
                         </div>
@@ -542,14 +545,14 @@ export default function SettingsPage() {
                           autoFocus
                         />
                         <Button size="sm" onClick={() => handleSaveEdit(theme.id)}>
-                          Save
+                          Enregistrer
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => setEditingTheme(null)}
                         >
-                          Cancel
+                          Annuler
                         </Button>
                       </>
                     ) : (
@@ -595,7 +598,7 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Keyboard className="h-5 w-5" />
-            Keyboard Shortcuts
+            Raccourcis clavier
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -624,14 +627,14 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Download className="h-5 w-5" />
-            Data
+            Donnees
           </CardTitle>
-          <CardDescription>Export or manage your data</CardDescription>
+          <CardDescription>Exportez ou gerez vos donnees</CardDescription>
         </CardHeader>
         <CardContent>
           <Button variant="outline" onClick={handleExportData}>
             <Download className="h-4 w-4 mr-2" />
-            Export All Data
+            Exporter toutes les donnees
           </Button>
         </CardContent>
       </Card>
@@ -639,7 +642,7 @@ export default function SettingsPage() {
       {/* About */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">About</CardTitle>
+          <CardTitle className="text-lg">A propos</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           <p className="text-sm text-muted-foreground">
@@ -652,6 +655,34 @@ export default function SettingsPage() {
           <p className="text-xs text-muted-foreground">Version 1.0.0</p>
         </CardContent>
       </Card>
+
+      {/* Delete Theme Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteThemeDialog.open}
+        onOpenChange={(open) => setDeleteThemeDialog(prev => ({...prev, open}))}
+        title="Supprimer le thème"
+        description={`Supprimer "${deleteThemeDialog.title}" ? Cela supprimera aussi tous les sujets et tâches associés.`}
+        confirmLabel="Supprimer"
+        variant="destructive"
+        onConfirm={() => {
+          deleteTheme.mutate(deleteThemeDialog.id);
+          setDeleteThemeDialog({ open: false, id: '', title: '' });
+        }}
+      />
+
+      {/* Delete Category Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteCategoryDialog.open}
+        onOpenChange={(open) => setDeleteCategoryDialog(prev => ({...prev, open}))}
+        title="Supprimer la catégorie"
+        description={`Supprimer "${deleteCategoryDialog.title}" ? Les thèmes de cette catégorie deviendront non-catégorisés.`}
+        confirmLabel="Supprimer"
+        variant="destructive"
+        onConfirm={() => {
+          deleteCategory.mutate(deleteCategoryDialog.id);
+          setDeleteCategoryDialog({ open: false, id: '', title: '' });
+        }}
+      />
     </div>
   );
 }

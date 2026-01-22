@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Plus, Tag, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -47,15 +47,15 @@ export function LabelPicker({ selectedLabels, onLabelsChange }: LabelPickerProps
 
   const selectedIds = new Set(selectedLabels.map((l) => l.id));
 
-  const toggleLabel = (label: Label) => {
+  const toggleLabel = useCallback((label: Label) => {
     if (selectedIds.has(label.id)) {
       onLabelsChange(selectedLabels.filter((l) => l.id !== label.id));
     } else {
       onLabelsChange([...selectedLabels, label]);
     }
-  };
+  }, [selectedIds, selectedLabels, onLabelsChange]);
 
-  const handleCreateLabel = async () => {
+  const handleCreateLabel = useCallback(async () => {
     if (!newLabelName.trim()) return;
 
     const newLabel = await createLabel.mutateAsync({
@@ -66,12 +66,12 @@ export function LabelPicker({ selectedLabels, onLabelsChange }: LabelPickerProps
     onLabelsChange([...selectedLabels, newLabel]);
     setNewLabelName('');
     setShowCreate(false);
-  };
+  }, [newLabelName, newLabelColor, createLabel, selectedLabels, onLabelsChange]);
 
-  const removeLabel = (labelId: string, e: React.MouseEvent) => {
+  const removeLabel = useCallback((labelId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     onLabelsChange(selectedLabels.filter((l) => l.id !== labelId));
-  };
+  }, [selectedLabels, onLabelsChange]);
 
   return (
     <div className="space-y-2">
@@ -111,14 +111,14 @@ export function LabelPicker({ selectedLabels, onLabelsChange }: LabelPickerProps
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className="h-6 px-2 gap-1">
               <Tag className="h-3 w-3" />
-              {selectedLabels.length === 0 ? 'Add label' : ''}
+              {selectedLabels.length === 0 ? 'Ajouter une etiquette' : ''}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-64 p-2" align="start">
             {showCreate ? (
               <div className="space-y-3">
                 <Input
-                  placeholder="Label name..."
+                  placeholder="Nom de l'etiquette..."
                   value={newLabelName}
                   onChange={(e) => setNewLabelName(e.target.value)}
                   autoFocus
@@ -126,16 +126,14 @@ export function LabelPicker({ selectedLabels, onLabelsChange }: LabelPickerProps
                 />
                 <div className="flex flex-wrap gap-1.5">
                   {PRESET_COLORS.map((color) => (
-                    <motion.button
+                    <button
                       key={color}
                       className={cn(
-                        'h-6 w-6 rounded-full transition-transform',
+                        'h-6 w-6 rounded-full transition-transform hover:scale-110 active:scale-95',
                         newLabelColor === color && 'ring-2 ring-offset-2 ring-foreground'
                       )}
                       style={{ backgroundColor: color }}
                       onClick={() => setNewLabelColor(color)}
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.95 }}
                     />
                   ))}
                 </div>
@@ -146,7 +144,7 @@ export function LabelPicker({ selectedLabels, onLabelsChange }: LabelPickerProps
                     className="flex-1"
                     onClick={() => setShowCreate(false)}
                   >
-                    Cancel
+                    Annuler
                   </Button>
                   <Button
                     size="sm"
@@ -154,7 +152,7 @@ export function LabelPicker({ selectedLabels, onLabelsChange }: LabelPickerProps
                     onClick={handleCreateLabel}
                     disabled={!newLabelName.trim() || createLabel.isPending}
                   >
-                    Create
+                    Creer
                   </Button>
                 </div>
               </div>
@@ -165,14 +163,13 @@ export function LabelPicker({ selectedLabels, onLabelsChange }: LabelPickerProps
                     {labels.map((label) => {
                       const isSelected = selectedIds.has(label.id);
                       return (
-                        <motion.button
+                        <button
                           key={label.id}
                           className={cn(
-                            'w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors text-left',
+                            'w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-all text-left hover:translate-x-0.5',
                             isSelected ? 'bg-accent' : 'hover:bg-accent/50'
                           )}
                           onClick={() => toggleLabel(label)}
-                          whileHover={{ x: 2 }}
                         >
                           <div
                             className="h-3 w-3 rounded-full flex-shrink-0"
@@ -180,12 +177,12 @@ export function LabelPicker({ selectedLabels, onLabelsChange }: LabelPickerProps
                           />
                           <span className="flex-1 text-sm truncate">{label.name}</span>
                           {isSelected && <Check className="h-4 w-4 text-primary" />}
-                        </motion.button>
+                        </button>
                       );
                     })}
                     {labels.length === 0 && (
                       <p className="text-xs text-muted-foreground text-center py-4">
-                        No labels yet
+                        Aucune etiquette
                       </p>
                     )}
                   </div>
@@ -197,7 +194,7 @@ export function LabelPicker({ selectedLabels, onLabelsChange }: LabelPickerProps
                   onClick={() => setShowCreate(true)}
                 >
                   <Plus className="h-4 w-4" />
-                  Create new label
+                  Creer une etiquette
                 </Button>
               </>
             )}
@@ -214,7 +211,7 @@ interface LabelBadgesProps {
   max?: number;
 }
 
-export function LabelBadges({ labels, max = 3 }: LabelBadgesProps) {
+export const LabelBadges = memo(function LabelBadges({ labels, max = 3 }: LabelBadgesProps) {
   const displayLabels = labels.slice(0, max);
   const remaining = labels.length - max;
 
@@ -243,4 +240,4 @@ export function LabelBadges({ labels, max = 3 }: LabelBadgesProps) {
       )}
     </div>
   );
-}
+});

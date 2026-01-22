@@ -89,6 +89,18 @@ export const queryKeys = {
     oldest: (limit: number) =>
       [...queryKeys.pendingItems.lists(), { view: 'oldest', limit }] as const,
   },
+
+  // Attachments
+  attachments: {
+    all: ['attachments'] as const,
+    byTask: (taskId: string) => [...queryKeys.attachments.all, 'task', taskId] as const,
+  },
+
+  // Preferences
+  preferences: {
+    all: ['preferences'] as const,
+    byUser: (userId: string) => [...queryKeys.preferences.all, 'user', userId] as const,
+  },
 } as const;
 
 // Type helpers for query key types

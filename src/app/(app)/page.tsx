@@ -350,7 +350,7 @@ export default function DailyBriefPage() {
         className="text-center space-y-2"
       >
         <div className="relative flex items-center justify-center">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Daily Brief</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Brief du jour</h1>
           {totalTasks === 0 && isToday(selectedDate) && (
             <motion.span
               initial={{ scale: 0, opacity: 0 }}
@@ -370,6 +370,7 @@ export default function DailyBriefPage() {
             size="icon"
             onClick={goToPreviousDay}
             className="h-11 w-11 active:scale-95"
+            aria-label="Jour précédent"
           >
             <ChevronLeft className="h-5 w-5" />
           </Button>
@@ -381,6 +382,7 @@ export default function DailyBriefPage() {
             size="icon"
             onClick={goToNextDay}
             className="h-11 w-11 active:scale-95"
+            aria-label="Jour suivant"
           >
             <ChevronRight className="h-5 w-5" />
           </Button>
@@ -501,7 +503,7 @@ export default function DailyBriefPage() {
               </div>
               <div>
                 <p className="text-xl md:text-2xl font-bold">{totalTasks}</p>
-                <p className="text-[10px] md:text-xs text-muted-foreground font-medium">To Do</p>
+                <p className="text-xs text-muted-foreground font-medium">A faire</p>
               </div>
             </div>
           </Card>
@@ -521,7 +523,7 @@ export default function DailyBriefPage() {
               </div>
               <div>
                 <p className="text-xl md:text-2xl font-bold">{waitingCount}</p>
-                <p className="text-[10px] md:text-xs text-muted-foreground font-medium">Waiting</p>
+                <p className="text-xs text-muted-foreground font-medium">En attente</p>
               </div>
             </div>
           </Card>
@@ -541,7 +543,7 @@ export default function DailyBriefPage() {
               </div>
               <div>
                 <p className="text-xl md:text-2xl font-bold">{zombieCount}</p>
-                <p className="text-[10px] md:text-xs text-muted-foreground font-medium">Inactifs</p>
+                <p className="text-xs text-muted-foreground font-medium">Inactifs</p>
               </div>
             </div>
           </Card>
@@ -558,7 +560,7 @@ export default function DailyBriefPage() {
             className="flex items-center gap-2"
           >
             <Badge variant="secondary" className="gap-1">
-              Filtre: {activeFilter === 'todo' ? 'To Do' : activeFilter === 'waiting' ? 'En attente' : 'Sujets inactifs'}
+              Filtre : {activeFilter === 'todo' ? 'A faire' : activeFilter === 'waiting' ? 'En attente' : 'Sujets inactifs'}
               <button
                 onClick={() => setActiveFilter('all')}
                 className="ml-1 hover:text-destructive"
@@ -587,7 +589,7 @@ export default function DailyBriefPage() {
                   >
                     <AlertCircle className="h-5 w-5" />
                   </motion.div>
-                  Overdue
+                  En retard
                   <Badge variant="destructive" className="ml-1">
                     {overdueCount}
                   </Badge>
@@ -622,8 +624,8 @@ export default function DailyBriefPage() {
           <Card className="border-2 border-dashed">
             <EmptyState
               type="success"
-              title="You're all caught up!"
-              description="No tasks for today. Enjoy your freedom or plan ahead."
+              title="Tout est fait !"
+              description="Aucune tache pour aujourd'hui. Profitez de votre liberte ou planifiez a l'avance."
             />
           </Card>
         </motion.div>
@@ -681,7 +683,7 @@ export default function DailyBriefPage() {
                       ) : (
                         <>
                           <Clock className="h-4 w-4 text-muted-foreground" />
-                          <h3 className="text-sm font-semibold text-muted-foreground">Inbox</h3>
+                          <h3 className="text-sm font-semibold text-muted-foreground">Boite de reception</h3>
                           <Badge variant="secondary" className="text-xs font-medium">
                             {themeGroup.tasks.length}
                           </Badge>

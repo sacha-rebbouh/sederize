@@ -54,22 +54,22 @@ import { SyncIndicator } from '@/components/ui/sync-status';
 
 const mainNavItems = [
   {
-    title: 'Daily Brief',
+    title: 'Brief du jour',
     href: '/',
     icon: LayoutDashboard,
   },
   {
-    title: 'All Tasks',
+    title: 'Toutes les taches',
     href: '/tasks',
     icon: ListTodo,
   },
   {
-    title: 'Inbox',
+    title: 'Boite de reception',
     href: '/inbox',
     icon: Inbox,
   },
   {
-    title: 'Calendar',
+    title: 'Calendrier',
     href: '/calendar',
     icon: CalendarDays,
   },
@@ -79,7 +79,7 @@ const mainNavItems = [
     icon: Kanban,
   },
   {
-    title: 'En Attente',
+    title: 'En attente',
     href: '/pending',
     icon: Clock,
   },
@@ -246,17 +246,18 @@ export function Sidebar({
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6"
+              className="h-10 w-10 -m-2"
               onClick={(e) => {
                 e.stopPropagation();
                 onCreateSubject?.(theme.id);
               }}
+              aria-label="Ajouter un sujet"
             >
               <Plus className="h-3 w-3" />
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-6 w-6">
+                <Button variant="ghost" size="icon" className="h-10 w-10 -m-2" aria-label="Options du thème">
                   <MoreHorizontal className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
@@ -315,7 +316,8 @@ export function Sidebar({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-5 w-5 opacity-0 group-hover/subjectItem:opacity-100 transition-opacity flex-shrink-0"
+                      className="h-10 w-10 -m-2 opacity-0 group-hover/subjectItem:opacity-100 transition-opacity flex-shrink-0"
+                      aria-label="Options du sujet"
                     >
                       <MoreHorizontal className="h-3 w-3" />
                     </Button>
@@ -347,7 +349,7 @@ export function Sidebar({
             ))}
             {getSubjectsForTheme(theme.id).length === 0 && (
               <p className="text-xs text-muted-foreground px-2 py-1 italic">
-                No subjects
+                Aucun sujet
               </p>
             )}
           </div>
@@ -390,17 +392,18 @@ export function Sidebar({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6"
+                className="h-10 w-10 -m-2"
                 onClick={(e) => {
                   e.stopPropagation();
                   onCreateTheme?.(category.id);
                 }}
+                aria-label="Ajouter un thème"
               >
                 <Plus className="h-3 w-3" />
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                  <Button variant="ghost" size="icon" className="h-10 w-10 -m-2" aria-label="Options de la catégorie">
                     <MoreHorizontal className="h-3 w-3" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -435,7 +438,7 @@ export function Sidebar({
             {category.themes.map((theme) => renderTheme(theme))}
             {category.themes.length === 0 && (
               <p className="text-xs text-muted-foreground px-2 py-1 italic">
-                No themes
+                Aucun theme
               </p>
             )}
           </div>
@@ -493,7 +496,7 @@ export function Sidebar({
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="right">Expand sidebar</TooltipContent>
+            <TooltipContent side="right">Ouvrir la sidebar</TooltipContent>
           </Tooltip>
         </div>
       )}
@@ -548,7 +551,8 @@ export function Sidebar({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6"
+                    className="h-10 w-10 -m-2"
+                    aria-label="Ajouter"
                   >
                     <Plus className="h-3 w-3" />
                   </Button>
@@ -574,7 +578,7 @@ export function Sidebar({
 
             {(!categories || categories.length === 0) && (
               <p className="text-xs text-muted-foreground px-2 py-2 text-center">
-                No categories yet
+                Aucune categorie
               </p>
             )}
           </div>
@@ -618,7 +622,7 @@ export function Sidebar({
                   </Button>
                 </Link>
               </TooltipTrigger>
-              <TooltipContent side="right">Settings</TooltipContent>
+              <TooltipContent side="right">Parametres</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -630,7 +634,7 @@ export function Sidebar({
                   <LogOut className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="right">Sign Out</TooltipContent>
+              <TooltipContent side="right">Deconnexion</TooltipContent>
             </Tooltip>
           </>
         ) : (
@@ -638,7 +642,7 @@ export function Sidebar({
             <Link href="/settings">
               <Button variant="ghost" className="w-full justify-start gap-2">
                 <Settings className="h-4 w-4" />
-                Settings
+                Parametres
               </Button>
             </Link>
             <Button
@@ -647,7 +651,7 @@ export function Sidebar({
               onClick={() => router.push('/signout')}
             >
               <LogOut className="h-4 w-4" />
-              Sign Out
+              Deconnexion
             </Button>
           </>
         )}

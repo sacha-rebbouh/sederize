@@ -47,15 +47,16 @@ interface TaskGroup {
   color?: string;
 }
 
-function getDateLabel(date: string | null): string {
-  if (!date) return 'No Date';
+function getDateLabel(date: string | null, status?: string): string {
+  if (!date) return 'Sans date';
   const d = new Date(date);
-  if (isPast(d) && !isToday(d)) return 'Overdue';
-  if (isToday(d)) return 'Today';
-  if (isTomorrow(d)) return 'Tomorrow';
+  // Les tâches terminées ne sont jamais "En retard"
+  if (isPast(d) && !isToday(d) && status !== 'done') return 'En retard';
+  if (isToday(d)) return "Aujourd'hui";
+  if (isTomorrow(d)) return 'Demain';
   const nextWeek = addDays(new Date(), 7);
-  if (d <= nextWeek) return 'This Week';
-  return 'Later';
+  if (d <= nextWeek) return 'Cette semaine';
+  return 'Plus tard';
 }
 
 const containerVariants = {
@@ -139,7 +140,7 @@ export default function AllTasksPage() {
         return false;
       }
       if (dateFilter !== 'all') {
-        const label = getDateLabel(task.do_date);
+        const label = getDateLabel(task.do_date, task.status);
         if (dateFilter === 'overdue' && label !== 'Overdue') return false;
         if (dateFilter === 'today' && label !== 'Today') return false;
         if (dateFilter === 'tomorrow' && label !== 'Tomorrow') return false;
@@ -203,21 +204,21 @@ export default function AllTasksPage() {
   // Group tasks based on view mode
   const groupedTasks = useMemo((): TaskGroup[] => {
     if (viewMode === 'all') {
-      return [{ title: 'All Tasks', tasks: sortTasksWithDoneAtBottom(filteredTasks) }];
+      return [{ title: 'Toutes les tâches', tasks: sortTasksWithDoneAtBottom(filteredTasks) }];
     }
 
     if (viewMode === 'by-date') {
       const groups: Record<string, TaskWithRelations[]> = {
-        'Overdue': [],
-        'Today': [],
-        'Tomorrow': [],
-        'This Week': [],
-        'Later': [],
-        'No Date': [],
+        'En retard': [],
+        "Aujourd'hui": [],
+        'Demain': [],
+        'Cette semaine': [],
+        'Plus tard': [],
+        'Sans date': [],
       };
 
       filteredTasks.forEach((task) => {
-        const label = getDateLabel(task.do_date);
+        const label = getDateLabel(task.do_date, task.status);
         groups[label].push(task);
       });
 
@@ -228,11 +229,11 @@ export default function AllTasksPage() {
 
     if (viewMode === 'by-category') {
       const byCategory: Record<string, { tasks: TaskWithRelations[]; color?: string }> = {
-        'No Category': { tasks: [], color: undefined }
+        'Sans catégorie': { tasks: [], color: undefined }
       };
 
       filteredTasks.forEach((task) => {
-        const key = task.category?.title || 'No Category';
+        const key = task.category?.title || 'Sans catégorie';
         if (!byCategory[key]) {
           byCategory[key] = {
             tasks: [],
@@ -253,11 +254,11 @@ export default function AllTasksPage() {
 
     if (viewMode === 'by-theme') {
       const byTheme: Record<string, { tasks: TaskWithRelations[]; color?: string; categoryName?: string }> = {
-        'No Theme': { tasks: [], color: undefined, categoryName: undefined }
+        'Sans thème': { tasks: [], color: undefined, categoryName: undefined }
       };
 
       filteredTasks.forEach((task) => {
-        const key = task.theme?.title || 'No Theme';
+        const key = task.theme?.title || 'Sans thème';
         if (!byTheme[key]) {
           byTheme[key] = {
             tasks: [],
@@ -315,9 +316,9 @@ export default function AllTasksPage() {
       });
 
       const statusLabels: Record<TaskStatus, string> = {
-        todo: 'To Do',
-        waiting_for: 'Waiting For',
-        done: 'Done',
+        todo: 'À faire',
+        waiting_for: 'En attente',
+        done: 'Terminées',
       };
 
       return Object.entries(byStatus)
@@ -380,10 +381,10 @@ export default function AllTasksPage() {
             <ListTodo className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">All Tasks</h1>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Toutes les tâches</h1>
             <p className="text-sm text-muted-foreground">
-              {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}
-              {hasActiveFilters && ' (filtered)'}
+              {filteredTasks.length} {filteredTasks.length === 1 ? 'tâche' : 'tâches'}
+              {hasActiveFilters && ' (filtrées)'}
             </p>
           </div>
         </div>
@@ -409,7 +410,7 @@ export default function AllTasksPage() {
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search tasks..."
+            placeholder="Rechercher..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10 h-11"
@@ -439,12 +440,12 @@ export default function AllTasksPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="by-date">By Date</SelectItem>
-              <SelectItem value="by-category">By Category</SelectItem>
-              <SelectItem value="by-theme">By Theme</SelectItem>
-              <SelectItem value="by-subject">By Subject</SelectItem>
-              <SelectItem value="by-status">By Status</SelectItem>
+              <SelectItem value="all">Tout</SelectItem>
+              <SelectItem value="by-date">Par date</SelectItem>
+              <SelectItem value="by-category">Par catégorie</SelectItem>
+              <SelectItem value="by-theme">Par thème</SelectItem>
+              <SelectItem value="by-subject">Par sujet</SelectItem>
+              <SelectItem value="by-status">Par statut</SelectItem>
             </SelectContent>
           </Select>
 
@@ -454,10 +455,10 @@ export default function AllTasksPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="todo">To Do</SelectItem>
-              <SelectItem value="waiting_for">Waiting</SelectItem>
-              <SelectItem value="done">Done</SelectItem>
+              <SelectItem value="all">Tous les statuts</SelectItem>
+              <SelectItem value="todo">À faire</SelectItem>
+              <SelectItem value="waiting_for">En attente</SelectItem>
+              <SelectItem value="done">Terminées</SelectItem>
             </SelectContent>
           </Select>
 
@@ -467,13 +468,13 @@ export default function AllTasksPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Dates</SelectItem>
-              <SelectItem value="overdue">Overdue</SelectItem>
-              <SelectItem value="today">Today</SelectItem>
-              <SelectItem value="tomorrow">Tomorrow</SelectItem>
-              <SelectItem value="week">This Week</SelectItem>
-              <SelectItem value="later">Later</SelectItem>
-              <SelectItem value="no-date">No Date</SelectItem>
+              <SelectItem value="all">Toutes les dates</SelectItem>
+              <SelectItem value="overdue">En retard</SelectItem>
+              <SelectItem value="today">Aujourd'hui</SelectItem>
+              <SelectItem value="tomorrow">Demain</SelectItem>
+              <SelectItem value="week">Cette semaine</SelectItem>
+              <SelectItem value="later">Plus tard</SelectItem>
+              <SelectItem value="no-date">Sans date</SelectItem>
             </SelectContent>
           </Select>
 
@@ -483,7 +484,7 @@ export default function AllTasksPage() {
               <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
+              <SelectItem value="all">Toutes les catégories</SelectItem>
               {categories?.map((cat) => (
                 <SelectItem key={cat.id} value={cat.id}>
                   <div className="flex items-center gap-2">
@@ -504,7 +505,7 @@ export default function AllTasksPage() {
               <SelectValue placeholder="Theme" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Themes</SelectItem>
+              <SelectItem value="all">Tous les thèmes</SelectItem>
               {filteredThemes.map((theme) => (
                 <SelectItem key={theme.id} value={theme.id}>
                   <div className="flex items-center gap-2">
@@ -525,7 +526,7 @@ export default function AllTasksPage() {
               <SelectValue placeholder="Subject" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Subjects</SelectItem>
+              <SelectItem value="all">Tous les sujets</SelectItem>
               {filteredSubjects.map((subject) => (
                 <SelectItem key={subject.id} value={subject.id}>
                   {subject.title}
@@ -550,7 +551,7 @@ export default function AllTasksPage() {
                   className="gap-1"
                 >
                   <X className="h-3 w-3" />
-                  Clear
+                  Effacer
                 </Button>
               </motion.div>
             )}
@@ -569,8 +570,8 @@ export default function AllTasksPage() {
         >
           <EmptyState
             type={search ? 'search' : 'success'}
-            title={search ? 'No tasks found' : 'No tasks yet'}
-            description={search ? 'Try a different search term' : 'Create your first task to get started'}
+            title={search ? 'Aucune tâche trouvée' : 'Aucune tâche'}
+            description={search ? 'Essayez un autre terme de recherche' : 'Créez votre première tâche pour commencer'}
           />
         </motion.div>
       ) : (

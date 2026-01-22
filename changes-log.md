@@ -1,5 +1,292 @@
 # Changes Log - Sederize
 
+## 2026-01-22 18:15 - Bugfix: Tâches terminées dans "En retard" + Traduction page Toutes les tâches
+
+### Fichiers modifiés
+- `src/app/(app)/tasks/page.tsx`
+
+### Changements
+
+#### 1. Bugfix: Tâches terminées affichées dans "En retard"
+**Problème**: Une tâche avec une date passée qui était marquée comme terminée apparaissait toujours dans le groupe "En retard" (Overdue) au lieu d'être dans sa catégorie de date normale.
+
+**Cause**: La fonction `getDateLabel()` ne tenait compte que de la date, pas du statut de la tâche.
+
+**Fix**: Ajout du paramètre `status` à `getDateLabel()` pour exclure les tâches terminées du groupe "En retard".
+
+```typescript
+// Avant
+function getDateLabel(date: string | null): string {
+  if (isPast(d) && !isToday(d)) return 'Overdue';
+}
+
+// Après
+function getDateLabel(date: string | null, status?: string): string {
+  if (isPast(d) && !isToday(d) && status !== 'done') return 'En retard';
+}
+```
+
+#### 2. Traduction complète de la page "Toutes les tâches"
+- Titre: "All Tasks" → "Toutes les tâches"
+- Groupes de dates: Overdue → "En retard", Today → "Aujourd'hui", etc.
+- Filtres: All Status → "Tous les statuts", etc.
+- États vides: "No tasks found" → "Aucune tâche trouvée"
+- Groupes: "No Category" → "Sans catégorie", "No Theme" → "Sans thème"
+
+---
+
+## 2026-01-22 17:45 - Localisation Francaise Complete + Optimisation Animations
+
+### Fichiers modifies
+
+#### Composants
+- `src/components/tasks/task-card.tsx` - Toast messages, dropdown items, waiting status
+- `src/components/tasks/edit-task-dialog.tsx` - Priority labels, "Labels" → "Etiquettes"
+- `src/components/tasks/task-focus-dialog.tsx` - Dialog titles, buttons, metadata labels
+- `src/components/tasks/quick-add.tsx` - Title, placeholder, buttons, toast messages
+- `src/components/tasks/snooze-popover.tsx` - Title, buttons
+- `src/components/tasks/waiting-for-dialog.tsx` - Dialog text, placeholders, buttons
+- `src/components/tasks/label-picker.tsx` - Buttons, placeholders, empty state + optimisation animations
+- `src/components/layout/sidebar.tsx` - Navigation items, tooltips, empty states
+- `src/components/layout/bottom-nav.tsx` - Navigation items
+- `src/components/command-palette.tsx` - Actions, navigation, groups, labels
+
+#### Pages
+- `src/app/(app)/page.tsx` - Daily Brief title, stats, empty states, sections
+- `src/app/(app)/inbox/page.tsx` - Description, placeholders, toast messages, empty states
+- `src/app/(app)/kanban/page.tsx` - Column titles, view modes, priority labels, empty states
+- `src/app/(app)/settings/page.tsx` - All sections, forms, keyboard shortcuts
+- `src/app/(auth)/login/page.tsx` - Titles, labels, buttons, error messages
+
+### Changements
+
+#### 1. Traductions Francaises
+Toutes les chaines visibles par l'utilisateur sont maintenant en francais :
+
+| Anglais | Francais |
+|---------|----------|
+| Daily Brief | Brief du jour |
+| Inbox | Boite de reception |
+| Calendar | Agenda |
+| Kanban | Kanban |
+| All Tasks | Toutes les taches |
+| Pending | En attente |
+| Archives | Archives |
+| Settings | Parametres |
+| To Do | A faire |
+| Waiting For | En attente |
+| Done | Termine |
+| Today | Aujourd'hui |
+| Tomorrow | Demain |
+| Yesterday | Hier |
+| This Week | Cette semaine |
+| Next Week | Semaine prochaine |
+| Later | Plus tard |
+| No Date | Sans date |
+| Overdue | En retard |
+| Priority | Priorite |
+| Low | Basse |
+| Normal | Normale |
+| High | Haute |
+| Urgent | Urgente |
+| Labels | Etiquettes |
+| Subject | Sujet |
+| Theme | Theme |
+| Category | Categorie |
+| Edit | Modifier |
+| Delete | Supprimer |
+| Save | Enregistrer |
+| Cancel | Annuler |
+| Create | Creer |
+| Add | Ajouter |
+| Search | Rechercher |
+| Filter | Filtrer |
+| Clear | Effacer |
+
+#### 2. Optimisation Animations (label-picker.tsx)
+Remplacement des animations Framer Motion simples par des transitions CSS :
+
+```tsx
+// Avant (Framer Motion)
+<motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+
+// Apres (CSS transitions)
+<button className="transition-transform hover:scale-110 active:scale-95">
+```
+
+- Impact : Reduction du JavaScript execute, meilleure performance
+- Applicable aux effets simples (hover, tap, focus)
+- Framer Motion conserve pour animations complexes (AnimatePresence, layout)
+
+#### 3. Elements deja traduits
+- `src/components/ui/confirm-dialog.tsx` - Deja en francais (confirmLabel='Confirmer', cancelLabel='Annuler')
+
+### Coherence maintenue
+- Accents retires des strings (compatibilite encodage)
+- Variables, fonctions, props non traduits
+- Commentaires non traduits
+- Terminologie coherente dans toute l'application
+
+---
+
+## 2026-01-22 16:30 - Corrections UX (Touch Targets, Confirm Dialog, Loading States)
+
+### Fichiers modifies
+- `src/components/layout/sidebar.tsx` - Touch targets augmentes de h-6 w-6 a h-10 w-10
+- `src/app/(app)/settings/page.tsx` - Remplacement confirm() natif par ConfirmDialog
+- `src/components/tasks/edit-task-dialog.tsx` - Ajout spinner Loader2 sur bouton submit
+- `src/app/(app)/inbox/page.tsx` - Bouton "Move to subject" visible sur mobile
+- `src/app/(app)/page.tsx` - Texte text-[10px] remplace par text-xs (12px minimum)
+
+### Changements
+
+#### 1. Touch targets (sidebar.tsx)
+- Boutons h-6 w-6 passes a h-10 w-10 avec marges negatives -m-2
+- Concerne: boutons Plus (+) et MoreHorizontal (...) sur themes, sujets et categories
+- Les icones gardent leur taille h-3 w-3, seul le hit area augmente
+
+#### 2. ConfirmDialog (settings/page.tsx)
+- Ajout import ConfirmDialog
+- Ajout etats deleteThemeDialog et deleteCategoryDialog
+- Remplacement des confirm() natifs par des dialogs modaux
+- Pattern: setState pour ouvrir, onConfirm pour executer
+
+#### 3. Loading spinner (edit-task-dialog.tsx)
+- Ajout import Loader2 de lucide-react
+- Bouton submit affiche spinner + "Enregistrement..." pendant isSaving
+
+#### 4. Bouton mobile visible (inbox/page.tsx)
+- Classe passee de "opacity-0 group-hover:opacity-100" a "opacity-100 md:opacity-0 md:group-hover:opacity-100"
+- Bouton aussi agrandi a h-10 w-10 pour meilleur touch target
+
+#### 5. Texte trop petit (page.tsx)
+- text-[10px] md:text-xs remplace par text-xs partout (3 occurrences)
+- Concerne les labels "To Do", "Waiting", "Inactifs" dans les stats cards
+
+---
+
+## 2026-01-22 16:15 - Fix Re-renders React (useCallback/memo)
+
+### Fichiers modifies
+- `src/components/tasks/task-focus-dialog.tsx` - Wrap handlers dans useCallback
+- `src/components/tasks/edit-task-dialog.tsx` - Wrap handleSubmit dans useCallback
+- `src/components/tasks/quick-add.tsx` - Wrap handlers dans useCallback
+- `src/components/tasks/label-picker.tsx` - Wrap handlers dans useCallback + memo sur LabelBadges
+
+### Changements
+
+#### 1. task-focus-dialog.tsx
+- `handleSave` wrappe dans useCallback avec dependances [task, doTime, title, description, doDate, priority, waterfall, updateTask, onOpenChange]
+- `handleComplete` wrappe dans useCallback avec dependances [task, updateTask, completeTask, onOpenChange]
+- `handleDelete` wrappe dans useCallback (pas de dependances)
+- `confirmDelete` wrappe dans useCallback avec dependances [task, deleteTask, onOpenChange]
+
+#### 2. edit-task-dialog.tsx
+- `handleSubmit` wrappe dans useCallback avec dependances [task.id, title, description, doDate, doTime, priority, waterfall, selectedLabels, updateTask, setTaskLabels, onOpenChange]
+
+#### 3. quick-add.tsx
+- `handleSubmit` wrappe dans useCallback avec dependances [input, isSubmitting, doDate, doTime, waterfall, priority, createTask, setOpen]
+- `handleInputChange` wrappe dans useCallback (pas de dependances)
+- `clearAll` wrappe dans useCallback (pas de dependances)
+
+#### 4. label-picker.tsx
+- `toggleLabel` wrappe dans useCallback avec dependances [selectedIds, selectedLabels, onLabelsChange]
+- `handleCreateLabel` wrappe dans useCallback avec dependances [newLabelName, newLabelColor, createLabel, selectedLabels, onLabelsChange]
+- `removeLabel` wrappe dans useCallback avec dependances [selectedLabels, onLabelsChange]
+- `LabelBadges` wrappe dans React.memo pour eviter re-renders inutiles
+
+#### 5. page.tsx (Daily Brief)
+- Le fichier avait deja les handlers principaux optimises avec useCallback
+- Les styles inline dans les loops utilisent des valeurs dynamiques et ne peuvent pas etre memoises globalement
+
+### Impact Performance
+- Reduction significative des re-renders dans les composants dialog
+- LabelBadges ne re-render plus quand le parent change (memo)
+- Handlers stables passes aux composants enfants
+
+---
+
+## 2026-01-22 15:30 - Corrections Accessibilite CRITIQUES
+
+### Fichiers modifies
+- `src/components/tasks/task-card.tsx` - aria-label sur checkbox et bouton menu
+- `src/components/tasks/quick-add.tsx` - aria-label sur bouton clear, focus states sur boutons priorite
+- `src/components/layout/sidebar.tsx` - aria-label sur tous les boutons icon-only (Plus, MoreHorizontal)
+- `src/app/(app)/page.tsx` - aria-label sur boutons navigation date
+- `src/app/(auth)/login/page.tsx` - Labels sur inputs email/password, role="alert" sur erreurs
+- `src/app/(app)/settings/page.tsx` - aria-label et focus states sur color pickers
+- `src/app/globals.css` - Meilleur contraste muted-foreground (47% -> 40%)
+
+### Changements
+
+#### 1. Boutons icon-only avec aria-label
+- task-card.tsx: Checkbox "Marquer comme terminee/a faire", Menu "Plus d'options"
+- quick-add.tsx: Bouton X "Effacer"
+- sidebar.tsx: Boutons Plus "Ajouter un sujet/theme", MoreHorizontal "Options du theme/sujet/categorie"
+- page.tsx (Daily Brief): ChevronLeft/Right "Jour precedent/suivant"
+
+#### 2. Inputs avec labels (login)
+- Ajout `<Label htmlFor="email">Email</Label>` et `<Label htmlFor="password">Password</Label>`
+- Ajout `id="email"` et `id="password"` sur les inputs correspondants
+
+#### 3. Focus states sur boutons priorite (quick-add)
+- Ajout `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`
+
+#### 4. Color picker accessible (settings)
+- Ajout `aria-label="Couleur {color}"` sur chaque bouton couleur
+- Ajout `focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`
+
+#### 5. Contraste muted-foreground ameliore
+- `--muted-foreground: 215 16% 47%` -> `215 16% 40%` (meilleur ratio WCAG)
+
+#### 6. Erreurs avec role="alert"
+- Ajout `role="alert" aria-live="polite"` sur le div d'erreur de login
+
+---
+
+## 2026-01-22 - Query Keys & Performance Fixes
+
+### Fichiers modifies
+- `src/lib/query-keys.ts` - Ajout des query keys pour attachments et preferences
+- `src/hooks/use-attachments.ts` - Utilisation du query key factory au lieu de strings hardcoded
+- `src/hooks/use-preferences.ts` - Utilisation du query key factory au lieu de strings hardcoded
+- `src/providers/auth-provider.tsx` - Memoisation du client Supabase avec useMemo
+
+### Changements
+
+#### 1. Query Keys Factory - Nouveaux entries
+```typescript
+attachments: {
+  all: ['attachments'] as const,
+  byTask: (taskId: string) => [...queryKeys.attachments.all, 'task', taskId] as const,
+},
+preferences: {
+  all: ['preferences'] as const,
+  byUser: (userId: string) => [...queryKeys.preferences.all, 'user', userId] as const,
+},
+```
+
+#### 2. use-attachments.ts
+- Import de `queryKeys` depuis `@/lib/query-keys`
+- `useTaskAttachments`: queryKey change de `['attachments', taskId]` a `queryKeys.attachments.byTask(taskId!)`
+- `useUploadAttachment`: invalidation utilise `queryKeys.attachments.byTask(variables.taskId)`
+- `useDeleteAttachment`: invalidation utilise `queryKeys.attachments.byTask(variables.taskId)`
+
+#### 3. use-preferences.ts
+- Import de `queryKeys` depuis `@/lib/query-keys`
+- `usePreferences`: queryKey change de `['preferences']` a `queryKeys.preferences.all`
+- Mutation onSuccess: invalidation utilise `queryKeys.preferences.all`
+
+#### 4. auth-provider.tsx
+- Ajout de `useMemo` aux imports
+- `createClient()` est maintenant memoised: `const supabase = useMemo(() => createClient(), [])`
+- Evite la recreation du client Supabase a chaque render
+
+### Note sur optimizePackageImports
+`@/types/database` n'a pas ete ajoute a `next.config.mjs` car c'est un alias local (pas un package npm). `optimizePackageImports` ne s'applique qu'aux packages npm externes.
+
+---
+
 ## 2026-01-20 21:00 - Nouveau Logo Sederize
 
 ### Fichiers créés/modifiés

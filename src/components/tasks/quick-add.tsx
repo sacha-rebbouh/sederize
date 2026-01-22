@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, CalendarDays, Send, Sparkles, Clock, Flag } from 'lucide-react';
 import { format } from 'date-fns';
@@ -72,7 +72,7 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
     }
   }, [isOpen]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isSubmitting) return;
 
@@ -96,7 +96,7 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
       // Build success message with details (like inbox does)
       const details: string[] = [];
       if (parsed.priority !== null) {
-        const priorityNames = { 0: 'Low', 1: 'Normal', 2: 'High', 3: 'Urgent' };
+        const priorityNames = { 0: 'Basse', 1: 'Normale', 2: 'Haute', 3: 'Urgente' };
         details.push(priorityNames[parsed.priority]);
       }
       if (parsed.date) {
@@ -107,7 +107,7 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
       }
 
       toast.success(
-        details.length > 0 ? `Task created (${details.join(', ')})` : 'Task created!',
+        details.length > 0 ? `Tache creee (${details.join(', ')})` : 'Tache creee !',
         { icon: <Sparkles className="h-4 w-4 text-amber-500" /> }
       );
 
@@ -119,24 +119,24 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
       setPriority(1);
       setOpen(false);
     } catch {
-      toast.error('Failed to create task');
+      toast.error('Erreur lors de la creation');
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [input, isSubmitting, doDate, doTime, waterfall, priority, createTask, setOpen]);
 
   // Simple input change - parsing happens on submit (like inbox)
-  const handleInputChange = (value: string) => {
+  const handleInputChange = useCallback((value: string) => {
     setInput(value);
-  };
+  }, []);
 
-  const clearAll = () => {
+  const clearAll = useCallback(() => {
     setInput('');
     setDoDate(undefined);
     setDoTime('');
     setWaterfall({ categoryId: null, themeId: null, subjectId: null });
     setPriority(1);
-  };
+  }, []);
 
   const hasOptions = doDate || doTime || waterfall.subjectId || waterfall.themeId || waterfall.categoryId || priority !== 1;
 
@@ -179,7 +179,7 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
               >
                 <Sparkles className="h-5 w-5 text-amber-500" />
               </motion.div>
-              Quick Add
+              Ajout rapide
             </DialogTitle>
           </DialogHeader>
 
@@ -188,7 +188,7 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
             <div className="relative">
               <Input
                 ref={inputRef}
-                placeholder='What needs to be done? Try "Call Mark tomorrow"'
+                placeholder='Que faut-il faire ? Essayez "Appeler Marc demain"'
                 value={input}
                 onChange={(e) => handleInputChange(e.target.value)}
                 className="pr-10 text-lg h-12"
@@ -211,6 +211,7 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
                       size="icon"
                       className="h-8 w-8"
                       onClick={() => setInput('')}
+                      aria-label="Effacer"
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -239,7 +240,7 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
                     )}
                   >
                     <CalendarDays className="h-4 w-4" />
-                    {doDate ? format(doDate, 'MMM d') : 'Date'}
+                    {doDate ? format(doDate, 'd MMM') : 'Date'}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -258,7 +259,7 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
                         className="w-full"
                         onClick={() => setDoDate(undefined)}
                       >
-                        Clear date
+                        Effacer la date
                       </Button>
                     </div>
                   )}
@@ -278,7 +279,7 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
                     )}
                   >
                     <Clock className="h-4 w-4" />
-                    {doTime || 'Time'}
+                    {doTime || 'Heure'}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-3" align="start">
@@ -297,7 +298,7 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
                         className="w-full"
                         onClick={() => setDoTime('')}
                       >
-                        Clear time
+                        Effacer l'heure
                       </Button>
                     )}
                   </div>
@@ -330,7 +331,7 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
                         type="button"
                         onClick={() => setPriority(p)}
                         className={cn(
-                          'w-full text-left px-3 py-2 text-sm rounded-md transition-colors',
+                          'w-full text-left px-3 py-2 text-sm rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                           priority === p ? 'bg-accent' : 'hover:bg-accent/50',
                           p === 3 && 'text-red-600',
                           p === 2 && 'text-amber-600',
@@ -373,7 +374,7 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
                       onClick={clearAll}
                       className="text-muted-foreground"
                     >
-                      Clear all
+                      Tout effacer
                     </Button>
                   </motion.div>
                 )}
@@ -401,7 +402,7 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
                 ) : (
                   <>
                     <Send className="h-4 w-4 mr-2" />
-                    Add Task
+                    Ajouter
                   </>
                 )}
               </Button>
@@ -409,7 +410,7 @@ export function QuickAdd({ open: controlledOpen, onOpenChange }: QuickAddProps) 
 
             {/* Keyboard hint */}
             <p className="text-xs text-center text-muted-foreground">
-              Press <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono">Enter</kbd> to add
+              Appuyez sur <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono">Entree</kbd> pour ajouter
             </p>
           </form>
         </DialogContent>

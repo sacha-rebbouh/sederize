@@ -92,7 +92,7 @@ export function SnoozePopover({ taskId, taskDate, className }: SnoozePopoverProp
         {!showCalendar ? (
           <div className="p-2 space-y-1">
             <p className="text-xs font-medium text-muted-foreground px-2 py-1">
-              Snooze until
+              Reporter jusqu'a
             </p>
             {quickOptions.map((option) => (
               <Button
@@ -105,7 +105,7 @@ export function SnoozePopover({ taskId, taskDate, className }: SnoozePopoverProp
                 <AlarmClock className="h-4 w-4 mr-2" />
                 {option.label}
                 <span className="ml-auto text-xs text-muted-foreground">
-                  {format(addDays(new Date(), option.days), 'EEE, MMM d')}
+                  {format(addDays(new Date(), option.days), 'EEE d MMM', { locale: fr })}
                 </span>
               </Button>
             ))}
@@ -115,7 +115,7 @@ export function SnoozePopover({ taskId, taskDate, className }: SnoozePopoverProp
               onClick={() => setShowCalendar(true)}
             >
               <CalendarDays className="h-4 w-4 mr-2" />
-              Pick a date
+              Choisir une date
             </Button>
           </div>
         ) : (
@@ -126,7 +126,7 @@ export function SnoozePopover({ taskId, taskDate, className }: SnoozePopoverProp
               className="mb-2"
               onClick={() => setShowCalendar(false)}
             >
-              Back
+              Retour
             </Button>
             <Calendar
               mode="single"

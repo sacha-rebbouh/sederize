@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
+import { queryKeys } from '@/lib/query-keys';
 import { TaskAttachment } from '@/types/database';
 
 const BUCKET_NAME = 'task-attachments';
@@ -9,7 +10,7 @@ const BUCKET_NAME = 'task-attachments';
 // Fetch attachments for a task
 export function useTaskAttachments(taskId: string | null) {
   return useQuery({
-    queryKey: ['attachments', taskId],
+    queryKey: queryKeys.attachments.byTask(taskId!),
     queryFn: async () => {
       if (!taskId) return [];
       const supabase = createClient();
@@ -76,7 +77,7 @@ export function useUploadAttachment() {
       return data as TaskAttachment;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['attachments', variables.taskId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.attachments.byTask(variables.taskId) });
     },
   });
 }
@@ -105,7 +106,7 @@ export function useDeleteAttachment() {
       if (dbError) throw dbError;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['attachments', variables.taskId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.attachments.byTask(variables.taskId) });
     },
   });
 }

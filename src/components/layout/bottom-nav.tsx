@@ -26,7 +26,7 @@ const navItems = [
     icon: LayoutDashboard,
   },
   {
-    title: 'Tasks',
+    title: 'Taches',
     href: '/tasks',
     icon: ListTodo,
   },
@@ -36,7 +36,7 @@ const navItems = [
     icon: Inbox,
   },
   {
-    title: 'Calendar',
+    title: 'Agenda',
     href: '/calendar',
     icon: CalendarDays,
   },
@@ -92,7 +92,7 @@ export function BottomNav({ onMenuClick }: BottomNavProps) {
           onClick={onMenuClick}
         >
           <Menu className="h-5 w-5" />
-          <span className="text-xs font-medium">More</span>
+          <span className="text-xs font-medium">Plus</span>
         </Button>
       </div>
     </nav>

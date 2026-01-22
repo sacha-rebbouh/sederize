@@ -196,27 +196,27 @@ export function CommandPalette({
         onValueChange={setSearch}
       />
       <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
+        <CommandEmpty>Aucun resultat.</CommandEmpty>
 
         {/* Actions */}
         <CommandGroup heading="Actions">
           {onCreateTask && (
             <CommandItem onSelect={() => handleAction(onCreateTask)}>
               <Plus className="mr-2 h-4 w-4" />
-              Create Task
+              Creer une tache
               <CommandShortcut>C</CommandShortcut>
             </CommandItem>
           )}
           {onCreateTheme && (
             <CommandItem onSelect={() => handleAction(onCreateTheme)}>
               <Plus className="mr-2 h-4 w-4" />
-              Create Theme
+              Creer un theme
             </CommandItem>
           )}
           {onCreateSubject && (
             <CommandItem onSelect={() => handleAction(onCreateSubject)}>
               <Plus className="mr-2 h-4 w-4" />
-              Create Subject
+              Creer un sujet
             </CommandItem>
           )}
         </CommandGroup>
@@ -227,15 +227,15 @@ export function CommandPalette({
         <CommandGroup heading="Navigation">
           <CommandItem onSelect={() => navigate('/')}>
             <LayoutDashboard className="mr-2 h-4 w-4" />
-            Daily Brief
+            Brief du jour
           </CommandItem>
           <CommandItem onSelect={() => navigate('/inbox')}>
             <Inbox className="mr-2 h-4 w-4" />
-            Inbox
+            Boite de reception
           </CommandItem>
           <CommandItem onSelect={() => navigate('/calendar')}>
             <CalendarDays className="mr-2 h-4 w-4" />
-            Calendar
+            Calendrier
           </CommandItem>
           <CommandItem onSelect={() => navigate('/kanban')}>
             <Kanban className="mr-2 h-4 w-4" />
@@ -243,7 +243,7 @@ export function CommandPalette({
           </CommandItem>
           <CommandItem onSelect={() => navigate('/settings')}>
             <Settings className="mr-2 h-4 w-4" />
-            Settings
+            Parametres
           </CommandItem>
         </CommandGroup>
 
@@ -271,7 +271,7 @@ export function CommandPalette({
                     className="mr-2 h-3 w-3 rounded-sm"
                     style={{ backgroundColor: theme.color_hex }}
                   />
-                  <span>Go to {theme.title}</span>
+                  <span>Aller a {theme.title}</span>
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -282,7 +282,7 @@ export function CommandPalette({
 
         {/* Subjects */}
         {filteredSubjects.length > 0 && (
-          <CommandGroup heading="Subjects">
+          <CommandGroup heading="Sujets">
             {filteredSubjects.map((subject) => (
               <CommandItem
                 key={subject.id}
@@ -299,7 +299,7 @@ export function CommandPalette({
                   <span>{subject.title}</span>
                   {subject.theme && (
                     <span className="text-xs text-muted-foreground">
-                      in {subject.theme.title}
+                      dans {subject.theme.title}
                     </span>
                   )}
                 </div>
@@ -312,7 +312,7 @@ export function CommandPalette({
         {scratchpadResults.length > 0 && (
           <>
             <CommandSeparator />
-            <CommandGroup heading="Found in Notes">
+            <CommandGroup heading="Trouve dans les notes">
               {scratchpadResults.map((subject) => (
                 <CommandItem
                   key={`scratchpad-${subject.id}`}
@@ -322,7 +322,7 @@ export function CommandPalette({
                     <StickyNote className="h-4 w-4 text-amber-500" />
                     <span>{subject.title}</span>
                     <span className="text-xs text-muted-foreground">
-                      - found in notes
+                      - trouve dans les notes
                     </span>
                   </div>
                 </CommandItem>
@@ -335,7 +335,7 @@ export function CommandPalette({
 
         {/* Tasks */}
         {filteredTasks.length > 0 && (
-          <CommandGroup heading={search ? 'Matching Tasks' : 'Recent Tasks'}>
+          <CommandGroup heading={search ? 'Taches correspondantes' : 'Taches recentes'}>
             {filteredTasks.map((task) => (
               <CommandItem
                 key={task.id}
@@ -358,7 +358,7 @@ export function CommandPalette({
                   <span className="truncate">{task.title}</span>
                   {task.subject?.title && (
                     <span className="text-xs text-muted-foreground">
-                      in {task.subject.title}
+                      dans {task.subject.title}
                     </span>
                   )}
                 </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import {
@@ -122,9 +122,8 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
     }
   }, [task, prevTaskId]);
 
-  if (!task) return null;
-
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
+    if (!task) return;
     // Normalize time (add :00 if only hour provided)
     let normalizedTime = doTime;
     if (normalizedTime && !normalizedTime.includes(':')) {
@@ -151,9 +150,10 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
         },
       }
     );
-  };
+  }, [task, doTime, title, description, doDate, priority, waterfall, updateTask, onOpenChange]);
 
-  const handleComplete = () => {
+  const handleComplete = useCallback(() => {
+    if (!task) return;
     if (task.status === 'done') {
       updateTask.mutate({ id: task.id, status: 'todo' });
     } else {
@@ -169,13 +169,14 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
         },
       });
     }
-  };
+  }, [task, updateTask, completeTask, onOpenChange]);
 
-  const handleDelete = () => {
+  const handleDelete = useCallback(() => {
     setDeleteConfirmOpen(true);
-  };
+  }, []);
 
-  const confirmDelete = () => {
+  const confirmDelete = useCallback(() => {
+    if (!task) return;
     deleteTask.mutate(task.id, {
       onSuccess: () => {
         toast.success('Task deleted');
@@ -183,7 +184,9 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
         onOpenChange(false);
       },
     });
-  };
+  }, [task, deleteTask, onOpenChange]);
+
+  if (!task) return null;
 
   const isDone = task.status === 'done';
   const isWaitingFor = task.status === 'waiting_for';
@@ -192,8 +195,8 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="sr-only">
-          <DialogTitle>Task Details</DialogTitle>
-          <DialogDescription>View and edit task details</DialogDescription>
+          <DialogTitle>Details de la tache</DialogTitle>
+          <DialogDescription>Voir et modifier les details de la tache</DialogDescription>
         </DialogHeader>
 
         {/* Header with status and actions */}
@@ -221,15 +224,15 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
           <div className="flex items-center gap-2">
             {!isEditing ? (
               <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-                Edit
+                Modifier
               </Button>
             ) : (
               <>
                 <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>
-                  Cancel
+                  Annuler
                 </Button>
                 <Button size="sm" onClick={handleSave} disabled={updateTask.isPending}>
-                  Save
+                  Enregistrer
                 </Button>
               </>
             )}
@@ -268,7 +271,7 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Task title"
+            placeholder="Titre de la tache"
             className="text-lg font-semibold"
           />
         ) : (
@@ -284,7 +287,7 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Add a description... (Markdown supported)"
+              placeholder="Ajouter une description... (Markdown supporte)"
               rows={4}
             />
           ) : (
@@ -292,7 +295,7 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
               {description ? (
                 <MarkdownContent content={description} />
               ) : (
-                <span className="text-muted-foreground italic">No description</span>
+                <span className="text-muted-foreground italic">Pas de description</span>
               )}
             </div>
           )}
@@ -303,7 +306,7 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
           <div className="p-3 rounded-md bg-amber-500/10 border border-amber-500/30">
             <div className="flex items-center gap-2 text-amber-700 dark:text-amber-500">
               <Hourglass className="h-4 w-4" />
-              <span className="text-sm font-medium">Waiting for:</span>
+              <span className="text-sm font-medium">En attente de :</span>
             </div>
             <p className="text-sm mt-1">{task.waiting_for_note}</p>
           </div>
@@ -317,13 +320,13 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
           <div className="space-y-2">
             <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <CalendarIcon className="h-4 w-4" />
-              Due Date
+              Date d'echeance
             </label>
             {isEditing ? (
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="outline" className="w-full justify-start">
-                    {doDate ? format(doDate, 'PPP') : 'Pick a date'}
+                    {doDate ? format(doDate, 'PPP') : 'Choisir une date'}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
@@ -337,7 +340,7 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
               </Popover>
             ) : (
               <p className="text-sm">
-                {task.do_date ? format(new Date(task.do_date), 'PPP') : 'No date set'}
+                {task.do_date ? format(new Date(task.do_date), 'PPP') : 'Pas de date'}
               </p>
             )}
           </div>
@@ -346,7 +349,7 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
           <div className="space-y-2">
             <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Clock className="h-4 w-4" />
-              Time
+              Heure
             </label>
             {isEditing ? (
               <Input
@@ -355,7 +358,7 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
                 onChange={(e) => setDoTime(e.target.value)}
               />
             ) : (
-              <p className="text-sm">{task.do_time?.slice(0, 5) || 'No time set'}</p>
+              <p className="text-sm">{task.do_time?.slice(0, 5) || 'Pas d\'heure'}</p>
             )}
           </div>
 
@@ -363,7 +366,7 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
           <div className="space-y-2">
             <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Flag className="h-4 w-4" />
-              Priority
+              Priorite
             </label>
             {isEditing ? (
               <Select
@@ -374,10 +377,10 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="0">Low</SelectItem>
-                  <SelectItem value="1">Normal</SelectItem>
-                  <SelectItem value="2">High</SelectItem>
-                  <SelectItem value="3">Urgent</SelectItem>
+                  <SelectItem value="0">Basse</SelectItem>
+                  <SelectItem value="1">Normale</SelectItem>
+                  <SelectItem value="2">Haute</SelectItem>
+                  <SelectItem value="3">Urgente</SelectItem>
                 </SelectContent>
               </Select>
             ) : (
@@ -401,9 +404,9 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
               />
             ) : (
               <p className="text-sm">
-                {waterfall.subjectId ? 'Sujet assigné' :
-                 waterfall.themeId ? 'Thème assigné' :
-                 waterfall.categoryId ? 'Catégorie assignée' : 'Inbox'}
+                {waterfall.subjectId ? 'Sujet assigne' :
+                 waterfall.themeId ? 'Theme assigne' :
+                 waterfall.categoryId ? 'Categorie assignee' : 'Boite de reception'}
               </p>
             )}
           </div>
@@ -415,15 +418,15 @@ export function TaskFocusDialog({ task, open, onOpenChange }: TaskFocusDialogPro
 
         {/* Metadata */}
         <div className="text-xs text-muted-foreground space-y-1 pt-4 border-t">
-          <p>Created: {format(new Date(task.created_at), 'PPP p')}</p>
-          <p>Updated: {format(new Date(task.updated_at), 'PPP p')}</p>
+          <p>Creee le : {format(new Date(task.created_at), 'PPP p')}</p>
+          <p>Modifiee le : {format(new Date(task.updated_at), 'PPP p')}</p>
           {task.completed_at && (
-            <p>Completed: {format(new Date(task.completed_at), 'PPP p')}</p>
+            <p>Terminee le : {format(new Date(task.completed_at), 'PPP p')}</p>
           )}
           {task.snooze_count > 0 && (
             <p className="flex items-center gap-1">
               <RotateCcw className="h-3 w-3" />
-              Snoozed {task.snooze_count} time{task.snooze_count > 1 ? 's' : ''}
+              Reportee {task.snooze_count} fois
             </p>
           )}
         </div>

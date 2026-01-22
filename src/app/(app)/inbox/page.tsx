@@ -76,20 +76,20 @@ export default function InboxPage() {
       // Build success message with details
       const details: string[] = [];
       if (parsed.priority !== null) {
-        const priorityNames = { 0: 'Low', 1: 'Normal', 2: 'High', 3: 'Urgent' };
+        const priorityNames = { 0: 'Basse', 1: 'Normale', 2: 'Haute', 3: 'Urgente' };
         details.push(priorityNames[parsed.priority]);
       }
       if (matchedLabels.length > 0) {
-        details.push(`${matchedLabels.length} label${matchedLabels.length > 1 ? 's' : ''}`);
+        details.push(`${matchedLabels.length} etiquette${matchedLabels.length > 1 ? 's' : ''}`);
       }
 
       toast.success(
-        details.length > 0 ? `Added to inbox (${details.join(', ')})` : 'Added to inbox',
+        details.length > 0 ? `Ajoute a la boite de reception (${details.join(', ')})` : 'Ajoute a la boite de reception',
         { icon: <Sparkles className="h-4 w-4 text-amber-500" /> }
       );
       setNewTask('');
     } catch {
-      toast.error('Failed to add task');
+      toast.error('Erreur lors de l\'ajout de la tache');
     } finally {
       setIsSubmitting(false);
     }
@@ -185,7 +185,7 @@ export default function InboxPage() {
               )}
             </div>
             <p className="text-sm text-muted-foreground">
-              Capture quickly. Organize later.
+              Capturez rapidement. Organisez plus tard.
             </p>
           </div>
         </div>
@@ -201,7 +201,7 @@ export default function InboxPage() {
       >
         <div className="relative flex-1">
           <Input
-            placeholder='Quick capture... Try "Call John tomorrow"'
+            placeholder='Capture rapide... Essayez "Appeler Jean demain"'
             value={newTask}
             onChange={(e) => setNewTask(e.target.value)}
             className="h-12 text-base"
@@ -223,7 +223,7 @@ export default function InboxPage() {
           ) : (
             <>
               <Plus className="h-4 w-4 mr-1" />
-              Add
+              Ajouter
             </>
           )}
         </Button>
@@ -239,8 +239,8 @@ export default function InboxPage() {
           <Card className="border-2 border-dashed">
             <EmptyState
               type="inbox"
-              title="Inbox Zero!"
-              description="Nothing to process. Use the quick add above to capture new tasks."
+              title="Boite vide !"
+              description="Rien a traiter. Utilisez l'ajout rapide ci-dessus pour capturer de nouvelles taches."
             />
           </Card>
         </motion.div>
@@ -264,18 +264,18 @@ export default function InboxPage() {
               >
                 <TaskCard task={task} labels={task.labels} />
 
-                {/* Move to Subject Button - positioned to avoid overlap with TaskCard actions */}
+                {/* Move to Subject Button - visible on mobile, hover on desktop */}
                 <motion.div
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="absolute right-24 top-4 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                  className="absolute right-24 top-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10"
                 >
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 bg-primary/10 hover:bg-primary/20 rounded-lg"
+                    className="h-10 w-10 bg-primary/10 hover:bg-primary/20 rounded-lg"
                     onClick={() => handleOpenAssignDialog(task)}
-                    title="Move to subject"
+                    title="Deplacer vers un sujet"
                   >
                     <FolderInput className="h-4 w-4 text-primary" />
                   </Button>
@@ -294,7 +294,7 @@ export default function InboxPage() {
           transition={{ delay: 0.5 }}
           className="text-xs text-center text-muted-foreground"
         >
-          Hover on a task and click <FolderInput className="inline h-3 w-3" /> to move it to a subject
+          Survolez une tache et cliquez sur <FolderInput className="inline h-3 w-3" /> pour la deplacer vers un sujet
         </motion.p>
       )}
 

@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/providers/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
 export default function LoginPage() {
@@ -39,7 +40,7 @@ export default function LoginPage() {
       router.push('/');
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred during login');
+      setError(err instanceof Error ? err.message : 'Une erreur est survenue lors de la connexion');
       setLoading(false);
     }
   };
@@ -56,7 +57,7 @@ export default function LoginPage() {
             </div>
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
-              {user ? 'Redirecting...' : 'Signing in...'}
+              {user ? 'Redirection...' : 'Connexion en cours...'}
             </p>
           </CardContent>
         </Card>
@@ -71,19 +72,21 @@ export default function LoginPage() {
           <div className="mx-auto mb-4 h-12 w-12 rounded-xl bg-slate-900 flex items-center justify-center">
             <span className="text-white text-xl font-bold">S</span>
           </div>
-          <CardTitle className="text-2xl">Welcome back</CardTitle>
-          <CardDescription>Sign in to your Sederize account</CardDescription>
+          <CardTitle className="text-2xl">Bon retour</CardTitle>
+          <CardDescription>Connectez-vous a votre compte Sederize</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {error && (
-            <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg">
+            <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg" role="alert" aria-live="polite">
               {error}
             </div>
           )}
 
           <form onSubmit={handleLogin} className="space-y-4">
-            <div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
               <Input
+                id="email"
                 type="email"
                 placeholder="Email"
                 value={email}
@@ -91,10 +94,12 @@ export default function LoginPage() {
                 required
               />
             </div>
-            <div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Mot de passe</Label>
               <Input
+                id="password"
                 type="password"
-                placeholder="Password"
+                placeholder="Mot de passe"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -105,18 +110,18 @@ export default function LoginPage() {
                 href="/forgot-password"
                 className="text-sm text-muted-foreground hover:text-primary"
               >
-                Forgot password?
+                Mot de passe oublie ?
               </Link>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? 'Connexion...' : 'Se connecter'}
             </Button>
           </form>
 
           <p className="text-center text-sm text-muted-foreground">
-            Don&apos;t have an account?{' '}
+            Pas encore de compte ?{' '}
             <Link href="/signup" className="text-primary hover:underline">
-              Sign up
+              S'inscrire
             </Link>
           </p>
         </CardContent>

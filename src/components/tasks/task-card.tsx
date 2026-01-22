@@ -75,9 +75,9 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
       setTimeout(() => {
         completeTask.mutate(task.id, {
           onSuccess: () => {
-            toast.success('Task completed!', {
+            toast.success('Tâche terminée !', {
               action: {
-                label: 'Undo',
+                label: 'Annuler',
                 onClick: () => updateTask.mutate({ id: task.id, status: 'todo' }),
               },
             });
@@ -156,6 +156,7 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
           className="flex-shrink-0 relative h-11 w-11 flex items-center justify-center -ml-2 -mt-1"
           whileTap={{ scale: 0.9 }}
           whileHover={{ scale: 1.05 }}
+          aria-label={isDone ? 'Marquer comme à faire' : 'Marquer comme terminée'}
         >
           <AnimatePresence mode="wait">
             {isDone ? (
@@ -258,7 +259,7 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
                   className="flex items-center gap-1.5 mt-2 text-sm text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-2 py-1 rounded-md"
                 >
                   <Hourglass className="h-3.5 w-3.5" />
-                  <span className="font-medium">Waiting:</span> {task.waiting_for_note}
+                  <span className="font-medium">En attente :</span> {task.waiting_for_note}
                 </motion.div>
               )}
 
@@ -318,7 +319,7 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-foreground">
+                    <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-foreground" aria-label="Plus d'options">
                       <MoreHorizontal className="h-5 w-5" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -328,7 +329,7 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
                       setTimeout(() => setEditOpen(true), 0);
                     }}>
                       <Edit3 className="h-4 w-4 mr-2" />
-                      Edit task
+                      Modifier
                     </DropdownMenuItem>
                     {!isWaitingFor && task.status !== 'done' && (
                       <DropdownMenuItem onSelect={(e) => {
@@ -336,13 +337,13 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
                         setTimeout(() => setWaitingForOpen(true), 0);
                       }}>
                         <Hourglass className="h-4 w-4 mr-2" />
-                        Set waiting for
+                        Mettre en attente
                       </DropdownMenuItem>
                     )}
                     {isWaitingFor && (
                       <DropdownMenuItem onSelect={handleMoveToTodo}>
                         <ArrowRight className="h-4 w-4 mr-2" />
-                        Move to todo
+                        Marquer comme a faire
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
@@ -354,7 +355,7 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
                       className="text-destructive focus:text-destructive"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
+                      Supprimer
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

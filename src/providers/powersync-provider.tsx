@@ -124,8 +124,19 @@ export function PowerSyncProvider({ children }: { children: ReactNode }) {
           },
         });
 
-        // Initialize the database
-        await powerSync.init();
+        // Initialize the database with timeout fallback for browsers that block WASM
+        const initPromise = powerSync.init();
+        const timeoutPromise = new Promise<void>((_, reject) =>
+          setTimeout(() => reject(new Error('PowerSync init timeout')), 5000)
+        );
+
+        try {
+          await Promise.race([initPromise, timeoutPromise]);
+        } catch (e) {
+          console.warn('[PowerSync] init() failed or timed out, running in online-only mode');
+          // Don't throw - allow app to work without PowerSync (e.g., Brave browser)
+          return;
+        }
 
         // Create connector and connect
         const connector = new SupabaseConnector();

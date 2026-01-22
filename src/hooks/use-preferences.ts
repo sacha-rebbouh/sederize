@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
+import { queryKeys } from '@/lib/query-keys';
 import { ViewType, ThemeMode, UpdatePreferencesInput, UserPreferences } from '@/types/database';
 
 const LOCAL_STORAGE_KEY = 'sederize-preferences';
@@ -120,7 +121,7 @@ export function usePreferences() {
 
   // Fetch preferences from Supabase
   const query = useQuery({
-    queryKey: ['preferences'],
+    queryKey: queryKeys.preferences.all,
     queryFn: async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -170,7 +171,7 @@ export function usePreferences() {
       return data as UserPreferences;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['preferences'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.preferences.all });
     },
   });
 

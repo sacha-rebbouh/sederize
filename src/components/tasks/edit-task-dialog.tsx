@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { CalendarDays, Clock, Flag } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { CalendarDays, Clock, Flag, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import {
@@ -118,7 +118,7 @@ export function EditTaskDialog({
 
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
 
@@ -153,7 +153,7 @@ export function EditTaskDialog({
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [task.id, title, description, doDate, doTime, priority, waterfall, selectedLabels, updateTask, setTaskLabels, onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -268,25 +268,25 @@ export function EditTaskDialog({
                   <SelectItem value="0">
                     <div className="flex items-center gap-2">
                       <Flag className="h-4 w-4 text-blue-500" />
-                      Low
+                      Basse
                     </div>
                   </SelectItem>
                   <SelectItem value="1">
                     <div className="flex items-center gap-2">
                       <Flag className="h-4 w-4 text-muted-foreground" />
-                      Normal
+                      Normale
                     </div>
                   </SelectItem>
                   <SelectItem value="2">
                     <div className="flex items-center gap-2">
                       <Flag className="h-4 w-4 text-amber-500" />
-                      High
+                      Haute
                     </div>
                   </SelectItem>
                   <SelectItem value="3">
                     <div className="flex items-center gap-2">
                       <Flag className="h-4 w-4 text-red-500" />
-                      Urgent
+                      Urgente
                     </div>
                   </SelectItem>
                 </SelectContent>
@@ -306,7 +306,7 @@ export function EditTaskDialog({
 
           {/* Labels */}
           <div className="space-y-2">
-            <Label>Labels</Label>
+            <Label>Etiquettes</Label>
             <LabelPicker
               selectedLabels={selectedLabels}
               onLabelsChange={setSelectedLabels}
@@ -325,7 +325,12 @@ export function EditTaskDialog({
               type="submit"
               disabled={!title.trim() || isSaving}
             >
-              {isSaving ? 'Enregistrement...' : 'Enregistrer'}
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Enregistrement...
+                </>
+              ) : 'Enregistrer'}
             </Button>
           </DialogFooter>
         </form>

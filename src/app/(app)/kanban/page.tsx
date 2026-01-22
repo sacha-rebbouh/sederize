@@ -73,21 +73,21 @@ interface KanbanColumn {
 const statusColumns: KanbanColumn[] = [
   {
     id: 'todo',
-    title: 'To Do',
+    title: 'A faire',
     icon: <Circle className="h-4 w-4" />,
     color: 'text-blue-500',
     bgColor: 'bg-blue-500/10',
   },
   {
     id: 'waiting_for',
-    title: 'Waiting For',
+    title: 'En attente',
     icon: <Hourglass className="h-4 w-4" />,
     color: 'text-amber-500',
     bgColor: 'bg-amber-500/10',
   },
   {
     id: 'done',
-    title: 'Done',
+    title: 'Termine',
     icon: <CheckCircle className="h-4 w-4" />,
     color: 'text-green-500',
     bgColor: 'bg-green-500/10',
@@ -98,42 +98,42 @@ const statusColumns: KanbanColumn[] = [
 const dateColumns: KanbanColumn[] = [
   {
     id: 'overdue',
-    title: 'Overdue',
+    title: 'En retard',
     icon: <CalendarX className="h-4 w-4" />,
     color: 'text-red-500',
     bgColor: 'bg-red-500/10',
   },
   {
     id: 'today',
-    title: 'Today',
+    title: 'Aujourd\'hui',
     icon: <CalendarDays className="h-4 w-4" />,
     color: 'text-blue-500',
     bgColor: 'bg-blue-500/10',
   },
   {
     id: 'tomorrow',
-    title: 'Tomorrow',
+    title: 'Demain',
     icon: <CalendarClock className="h-4 w-4" />,
     color: 'text-purple-500',
     bgColor: 'bg-purple-500/10',
   },
   {
     id: 'this-week',
-    title: 'This Week',
+    title: 'Cette semaine',
     icon: <Clock className="h-4 w-4" />,
     color: 'text-cyan-500',
     bgColor: 'bg-cyan-500/10',
   },
   {
     id: 'later',
-    title: 'Later',
+    title: 'Plus tard',
     icon: <CalendarDays className="h-4 w-4" />,
     color: 'text-gray-500',
     bgColor: 'bg-gray-500/10',
   },
   {
     id: 'no-date',
-    title: 'No Date',
+    title: 'Sans date',
     icon: <Circle className="h-4 w-4" />,
     color: 'text-muted-foreground',
     bgColor: 'bg-muted',
@@ -155,10 +155,10 @@ function getDateCategory(doDate: string | null): string {
 
 // View mode options
 const viewModes = [
-  { id: 'all-status' as ViewMode, label: 'All Status', icon: <Layers className="h-4 w-4" /> },
-  { id: 'todo-by-date' as ViewMode, label: 'To Do', icon: <CalendarDays className="h-4 w-4" /> },
-  { id: 'waiting' as ViewMode, label: 'Waiting', icon: <Hourglass className="h-4 w-4" /> },
-  { id: 'done' as ViewMode, label: 'Done', icon: <CheckCircle className="h-4 w-4" /> },
+  { id: 'all-status' as ViewMode, label: 'Tous les statuts', icon: <Layers className="h-4 w-4" /> },
+  { id: 'todo-by-date' as ViewMode, label: 'A faire', icon: <CalendarDays className="h-4 w-4" /> },
+  { id: 'waiting' as ViewMode, label: 'En attente', icon: <Hourglass className="h-4 w-4" /> },
+  { id: 'done' as ViewMode, label: 'Termine', icon: <CheckCircle className="h-4 w-4" /> },
 ];
 
 // Build hierarchy label: Category › Theme › Subject
@@ -279,7 +279,7 @@ function SortableTaskCard({ task }: { task: TaskWithRelations }) {
                       : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                   )}
                 >
-                  {task.priority === 2 ? 'High' : 'Medium'}
+                  {task.priority === 2 ? 'Haute' : 'Moyenne'}
                 </span>
               )}
             </div>
@@ -360,7 +360,7 @@ function DroppableColumn({
                         isOver && 'border-primary bg-primary/5 text-primary'
                       )}
                     >
-                      {isOver ? 'Drop here' : 'No tasks'}
+                      {isOver ? 'Deposer ici' : 'Aucune tache'}
                     </motion.div>
                   ) : (
                     tasks.map((task) => (
@@ -454,7 +454,7 @@ export default function KanbanPage() {
       case 'waiting':
         cols = [{
           id: 'waiting_for',
-          title: 'Waiting For',
+          title: 'En attente',
           icon: <Hourglass className="h-4 w-4" />,
           color: 'text-amber-500',
           bgColor: 'bg-amber-500/10',
@@ -466,7 +466,7 @@ export default function KanbanPage() {
       case 'done':
         cols = [{
           id: 'done',
-          title: 'Done',
+          title: 'Termine',
           icon: <CheckCircle className="h-4 w-4" />,
           color: 'text-green-500',
           bgColor: 'bg-green-500/10',
@@ -660,7 +660,7 @@ export default function KanbanPage() {
             <div>
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Kanban</h1>
               <p className="text-sm text-muted-foreground">
-                {visibleTasks.length} tasks {hasFilters && '(filtered)'}
+                {visibleTasks.length} taches {hasFilters && '(filtrees)'}
               </p>
             </div>
           </div>
