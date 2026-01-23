@@ -90,34 +90,39 @@ function transformTaskWithRelations(
 // ============================================
 
 function useRelatedData() {
+  // Related data (subjects, themes, categories, labels) rarely changes during a session
+  // Use runQueryOnce: true to prevent re-renders on every PowerSync sync
+  // Data refreshes on page navigation or component remount
   const subjectsResult = usePowerSyncWatchedQuery<Subject>(
     'SELECT * FROM subjects',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const themesResult = usePowerSyncWatchedQuery<Theme>(
     'SELECT * FROM themes',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const categoriesResult = usePowerSyncWatchedQuery<Category>(
     'SELECT * FROM categories',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const labelsResult = usePowerSyncWatchedQuery<Label>(
     'SELECT * FROM labels',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
+  // task_labels - use runQueryOnce: true to prevent re-render cascade
+  // Label assignments refresh on navigation or manual refresh
   const taskLabelsResult = usePowerSyncWatchedQuery<TaskLabel>(
     'SELECT task_id, label_id FROM task_labels',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   return useMemo(() => ({

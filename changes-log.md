@@ -1,5 +1,18 @@
 # Changes Log - Sederize
 
+## 2026-01-23 17:45 - Fix crash caused by task_labels re-render cascade
+
+### Fichiers modifies
+- `src/hooks/use-tasks.ts`
+
+### Probleme
+La page Daily Brief crashait apres 10 secondes ("impossible d'ouvrir cette page"). Cause: la query `task_labels` dans `useRelatedData()` avait `runQueryOnce: false`, ce qui declenchait des re-renders a chaque sync PowerSync. Comme `useRelatedData()` est appele par plusieurs hooks (useDailyBriefTasks, useWaitingForTasks, etc.), cela creait une cascade de re-renders qui finissait par faire crasher l'app (memory exhaustion).
+
+### Solution
+Changement de `task_labels` a `runQueryOnce: true` dans `useRelatedData()`. Les assignations de labels se rafraichissent a la navigation ou au refresh manuel.
+
+---
+
 ## 2026-01-23 17:35 - Fix PowerSync auto-refresh on all pages
 
 ### Fichiers modifies
