@@ -1,5 +1,79 @@
 # Changes Log - Sederize
 
+## 2026-01-23 17:20 - Remove dead code from powersync hooks
+
+### Fichiers modifies
+- `src/lib/powersync/hooks.ts`
+
+### Changement
+Suppression du code mort non utilise (reduction de ~160 lignes a ~40 lignes):
+- `WatchedQueryResult` type
+- `useWatchedQuery` hook (avait `runQueryOnce: false` problematique)
+- `useUserId`, `usePowerSyncWrite`, `usePowerSyncReady` hooks
+- `buildInsertSQL`, `buildUpdateSQL`, `buildDeleteSQL` functions
+
+### Ce qui reste (utilise)
+- `generateUUID()`, `nowISO()`, `formatDateSQL()`
+
+---
+
+## 2026-01-23 17:15 - Fix TaskCard "3mm jump" animation issue
+
+### Fichiers modifies
+- `src/components/tasks/task-card.tsx`
+
+### Probleme
+Les task cards "montaient" de 3mm apres le rendu initial a cause de l'animation Framer Motion `initial={{ opacity: 0, y: 10 }}` qui s'executait au mount.
+
+### Solution
+Suppression de toutes les animations de mount dans TaskCard:
+- `motion.div` principal → `div` standard avec classes CSS pour l'effet `isCompleting`
+- Subject badge: suppression de `initial/animate` opacity
+- Waiting for note: suppression de `initial/animate` opacity/height
+- Metadata row: suppression de `initial/animate` opacity avec delay
+
+Les animations interactives (checkbox hover/tap, complete animation) sont preservees.
+
+### Impact
+- Plus de "jump" visuel au chargement des tasks
+- UI plus stable et professionnelle
+- Performance legerement amelioree (moins d'animations)
+
+---
+
+## 2026-01-23 17:05 - Fix "Rester connecte" redirect loop
+
+### Fichiers modifies
+- `src/lib/supabase/client.ts`
+- `src/middleware.ts`
+- `src/providers/auth-provider.tsx`
+
+### Probleme
+Boucle de redirection infinie quand l'utilisateur se connecte avec "Rester connecte" decoche:
+1. Middleware serveur voit session valide → redirige vers `/`
+2. AuthProvider client appelle `signOut()` → redirige vers `/login`
+3. Middleware voit encore session → redirige vers `/`
+4. Boucle infinie
+
+### Cause racine
+`sessionStorage` n'est pas accessible cote serveur. Le middleware ne savait pas que le client allait effacer la session.
+
+### Solution
+Remplace `sessionStorage` par des **cookies** lisibles par le serveur:
+- `sederize-remember-me`: cookie persistant (1 an) stockant la preference
+- `sederize-session-active`: cookie de session (expire a la fermeture du navigateur)
+
+Le middleware verifie maintenant ces cookies:
+- Si `remember-me = false` ET `session-active` absent → signOut cote serveur et redirige vers login
+- Plus de conflit serveur/client
+
+### Impact
+- Login avec "Rester connecte" fonctionne correctement
+- Fermer le navigateur deconnecte si "Rester connecte" n'etait pas coche
+- Plus de boucle de redirection
+
+---
+
 ## 2026-01-23 16:10 - Fix constant re-renders: runQueryOnce: true for all PowerSync queries
 
 ### Fichiers modifies
