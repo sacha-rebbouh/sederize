@@ -37,32 +37,32 @@ export function usePendingItems(status?: PendingStatus) {
   const pendingResult = usePowerSyncWatchedQuery<PendingItem>(
     pendingQuery,
     pendingParams,
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Fetch related data for joining
   const categoriesResult = usePowerSyncWatchedQuery<Category>(
     'SELECT * FROM categories',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const themesResult = usePowerSyncWatchedQuery<Theme>(
     'SELECT * FROM themes',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const subjectsResult = usePowerSyncWatchedQuery<Subject>(
     'SELECT * FROM subjects',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const tasksResult = usePowerSyncWatchedQuery<Task>(
     'SELECT * FROM tasks',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Join in memory
@@ -150,7 +150,7 @@ export function usePendingItemsCount() {
   const powerSyncResult = usePowerSyncWatchedQuery<{ count: number }>(
     `SELECT COUNT(*) as count FROM pending_items WHERE status = 'pending'`,
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Fallback to Supabase
@@ -192,32 +192,32 @@ export function useOldestPendingItems(limit: number = 5) {
   const pendingResult = usePowerSyncWatchedQuery<PendingItem>(
     `SELECT * FROM pending_items WHERE status = 'pending' ORDER BY created_at ASC LIMIT ?`,
     [limit],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Fetch related data
   const categoriesResult = usePowerSyncWatchedQuery<Category>(
     'SELECT * FROM categories',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const themesResult = usePowerSyncWatchedQuery<Theme>(
     'SELECT * FROM themes',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const subjectsResult = usePowerSyncWatchedQuery<Subject>(
     'SELECT * FROM subjects',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const tasksResult = usePowerSyncWatchedQuery<Task>(
     'SELECT * FROM tasks',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Join in memory

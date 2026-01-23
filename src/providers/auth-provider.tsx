@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, shouldClearSession } from '@/lib/supabase/client';
 
 interface AuthContextType {
   user: User | null;
@@ -26,6 +26,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Get initial session
     const getSession = async () => {
+      // Check if user should be logged out (new browser session + remember me disabled)
+      if (shouldClearSession()) {
+        await supabase.auth.signOut();
+        setSession(null);
+        setUser(null);
+        setIsLoading(false);
+        return;
+      }
+
       const {
         data: { session },
       } = await supabase.auth.getSession();

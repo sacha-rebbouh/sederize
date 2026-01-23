@@ -26,7 +26,7 @@ export function useThemes(options?: UseThemesOptions) {
   const powerSyncResult = usePowerSyncWatchedQuery<Theme>(
     'SELECT * FROM themes ORDER BY order_index ASC',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Fallback to Supabase when PowerSync is not ready
@@ -67,7 +67,7 @@ export function useTheme(id: string) {
   const powerSyncResult = usePowerSyncWatchedQuery<Theme>(
     'SELECT * FROM themes WHERE id = ?',
     [id],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Fallback to Supabase

@@ -1,5 +1,41 @@
 # Changes Log - Sederize
 
+## 2026-01-23 16:10 - Fix constant re-renders: runQueryOnce: true for all PowerSync queries
+
+### Fichiers modifies
+- `src/hooks/use-tasks.ts` (11 occurrences)
+- `src/hooks/use-pending-items.ts` (11 occurrences)
+- `src/hooks/use-subjects.ts` (8 occurrences)
+- `src/hooks/use-themes.ts` (2 occurrences)
+- `src/hooks/use-categories.ts` (4 occurrences)
+- `src/hooks/use-labels.ts` (3 occurrences)
+- `src/providers/related-data-provider.tsx` (5 occurrences)
+
+### Changement
+**ROOT CAUSE FIX** pour les re-renders constants et les rafraichissements de page.
+
+### Probleme identifie
+`usePowerSyncWatchedQuery` avec `runQueryOnce: false` (le defaut) emet de nouvelles references de donnees a CHAQUE evenement de sync PowerSync:
+- PowerSync sync en arriere-plan → nouvelle emission de donnees
+- Nouvelles references objets → React detecte un changement
+- Re-render du composant → les animations se rejouent, la page "flash"
+- Ce cycle se repete indefiniment tant que PowerSync sync
+
+### Solution
+Change `runQueryOnce: false` en `runQueryOnce: true` pour TOUTES les watched queries:
+- Les queries sont executees UNE SEULE FOIS au mount
+- Plus d'emissions continues lors des syncs PowerSync
+- Les donnees se rafraichissent lors de la navigation entre pages
+- Les mutations React Query invalident toujours correctement le cache
+
+### Impact
+- Plus de "flash" ou refresh constant des pages
+- Plus de crash apres navigation entre onglets
+- PWA stable et performante
+- Les donnees restent a jour via les mutations et la navigation
+
+---
+
 ## 2026-01-23 15:35 - Remove Framer Motion mount animations from Kanban page
 
 ### Fichiers modifies

@@ -112,7 +112,7 @@ export function useDailyBriefTasks(date: Date = new Date()) {
      WHERE status = 'todo' AND do_date <= ?
      ORDER BY do_date ASC, priority DESC, order_index ASC`,
     [dateStr],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Transform tasks with relations
@@ -181,7 +181,7 @@ export function useInboxTasks() {
      WHERE subject_id IS NULL AND theme_id IS NULL AND category_id IS NULL AND status != 'done'
      ORDER BY created_at DESC`,
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const tasksWithRelations = useMemo(() => {
@@ -239,7 +239,7 @@ export function useInboxCount() {
     `SELECT COUNT(*) as count FROM tasks
      WHERE subject_id IS NULL AND theme_id IS NULL AND category_id IS NULL AND status != 'done'`,
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const supabaseResult = useQuery({
@@ -282,7 +282,7 @@ export function useSubjectTasks(subjectId: string) {
   const tasksResult = usePowerSyncWatchedQuery<Task>(
     `SELECT * FROM tasks WHERE subject_id = ? ORDER BY status ASC, order_index ASC`,
     [subjectId],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const tasksWithRelations = useMemo(() => {
@@ -338,7 +338,7 @@ export function useWaitingForTasks() {
   const tasksResult = usePowerSyncWatchedQuery<Task>(
     `SELECT * FROM tasks WHERE status = 'waiting_for' ORDER BY updated_at DESC`,
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const tasksWithRelations = useMemo(() => {
@@ -398,7 +398,7 @@ export function useWaitingForCount() {
   const powerSyncResult = usePowerSyncWatchedQuery<{ count: number }>(
     `SELECT COUNT(*) as count FROM tasks WHERE status = 'waiting_for'`,
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const supabaseResult = useQuery({
@@ -440,7 +440,7 @@ export function useTasksByDateRange(startDate: Date, endDate: Date) {
   const tasksResult = usePowerSyncWatchedQuery<Task>(
     `SELECT * FROM tasks WHERE do_date >= ? AND do_date <= ? ORDER BY do_date ASC`,
     [startStr, endStr],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const tasksWithRelations = useMemo(() => {
@@ -503,7 +503,7 @@ export function useAllTasks(options?: UseTasksOptions) {
   const tasksResult = usePowerSyncWatchedQuery<Task>(
     `SELECT * FROM tasks ORDER BY updated_at DESC LIMIT 100`,
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const tasksWithRelations = useMemo(() => {
@@ -564,7 +564,7 @@ export function useKanbanTasks() {
   const tasksResult = usePowerSyncWatchedQuery<Task>(
     `SELECT * FROM tasks ORDER BY order_index ASC`,
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const tasksWithRelations = useMemo(() => {
@@ -624,7 +624,7 @@ export function useAllTasksUnlimited() {
   const tasksResult = usePowerSyncWatchedQuery<Task>(
     `SELECT * FROM tasks ORDER BY updated_at DESC`,
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const tasksWithRelations = useMemo(() => {
@@ -685,7 +685,7 @@ export function useSubtasks(parentTaskId: string | null) {
       ? `SELECT * FROM tasks WHERE parent_task_id = ? ORDER BY order_index ASC`
       : `SELECT * FROM tasks WHERE 1 = 0`, // Empty result
     parentTaskId ? [parentTaskId] : [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const supabaseResult = useQuery({

@@ -4,16 +4,18 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, setRememberMe, getRememberMe } from '@/lib/supabase/client';
 import { useAuth } from '@/providers/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMeState] = useState(() => getRememberMe());
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -26,6 +28,9 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      // Save remember me preference before login
+      setRememberMe(rememberMe);
+
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -105,12 +110,25 @@ export default function LoginPage() {
                 required
               />
             </div>
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="remember-me"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMeState(checked === true)}
+                />
+                <label
+                  htmlFor="remember-me"
+                  className="text-sm text-muted-foreground cursor-pointer select-none"
+                >
+                  Rester connecté
+                </label>
+              </div>
               <Link
                 href="/forgot-password"
                 className="text-sm text-muted-foreground hover:text-primary"
               >
-                Mot de passe oublie ?
+                Mot de passe oublié ?
               </Link>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>

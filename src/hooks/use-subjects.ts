@@ -37,13 +37,13 @@ export function useSubjects(themeId?: string) {
   const subjectsResult = usePowerSyncWatchedQuery<Subject>(
     subjectsQuery,
     subjectsParams,
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const themesResult = usePowerSyncWatchedQuery<Theme>(
     'SELECT * FROM themes',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Join subjects with themes in memory
@@ -106,13 +106,13 @@ export function useActiveSubjects(options?: UseSubjectsOptions) {
   const subjectsResult = usePowerSyncWatchedQuery<Subject>(
     `SELECT * FROM subjects WHERE status = 'active' ORDER BY order_index ASC`,
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const themesResult = usePowerSyncWatchedQuery<Theme>(
     'SELECT * FROM themes',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Join subjects with themes
@@ -169,13 +169,13 @@ export function useSubject(id: string) {
   const subjectResult = usePowerSyncWatchedQuery<Subject>(
     'SELECT * FROM subjects WHERE id = ?',
     [id],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const themesResult = usePowerSyncWatchedQuery<Theme>(
     'SELECT * FROM themes',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Join subject with theme
@@ -237,13 +237,13 @@ export function useZombieSubjects() {
   const subjectsResult = usePowerSyncWatchedQuery<Subject>(
     `SELECT * FROM subjects WHERE status = 'active' AND last_activity_at < ?`,
     [tenDaysAgo],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const themesResult = usePowerSyncWatchedQuery<Theme>(
     'SELECT * FROM themes',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Join subjects with themes

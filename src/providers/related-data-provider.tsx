@@ -81,35 +81,37 @@ export function RelatedDataProvider({ children }: { children: ReactNode }) {
  * This ensures usePowerSyncWatchedQuery has access to PowerSyncContext
  */
 function RelatedDataProviderInner({ children }: { children: ReactNode }) {
-  // These queries are now safe to call - PowerSyncContext is guaranteed to exist
+  // runQueryOnce: true - fetch once, don't watch for changes
+  // This prevents constant re-renders from PowerSync sync events
+  // Data will refresh on page navigation
   const subjectsResult = usePowerSyncWatchedQuery<Subject>(
     'SELECT * FROM subjects',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const themesResult = usePowerSyncWatchedQuery<Theme>(
     'SELECT * FROM themes',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const categoriesResult = usePowerSyncWatchedQuery<Category>(
     'SELECT * FROM categories',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const labelsResult = usePowerSyncWatchedQuery<Label>(
     'SELECT * FROM labels',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const taskLabelsResult = usePowerSyncWatchedQuery<TaskLabel>(
     'SELECT task_id, label_id FROM task_labels',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Memoize the data to prevent unnecessary re-renders

@@ -29,7 +29,7 @@ export function useLabels() {
   const powerSyncResult = usePowerSyncWatchedQuery<Label>(
     'SELECT * FROM labels ORDER BY name ASC',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Fallback to Supabase
@@ -70,13 +70,13 @@ export function useTaskLabels(taskId: string) {
   const taskLabelsResult = usePowerSyncWatchedQuery<TaskLabel>(
     'SELECT * FROM task_labels WHERE task_id = ?',
     [taskId],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const labelsResult = usePowerSyncWatchedQuery<Label>(
     'SELECT * FROM labels',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Join in memory
