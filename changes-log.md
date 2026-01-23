@@ -1,5 +1,29 @@
 # Changes Log - Sederize
 
+## 2026-01-23 19:30 - Enable reactive queries for real-time UI updates
+
+### Fichiers modifies
+- `src/hooks/use-tasks.ts`
+- `src/hooks/use-pending-items.ts`
+- `src/hooks/use-labels.ts`
+
+### Probleme
+Apres le fix VFS, les queries PowerSync avaient toujours `runQueryOnce: true` (mis pendant le debug). Resultat: les taches creees/modifiees/supprimees n'apparaissaient pas immediatement dans l'UI.
+
+### Solution
+Retirer `runQueryOnce: true` des queries de donnees principales:
+- Toutes les queries de taches (daily brief, inbox, kanban, etc.)
+- Les queries de pending items
+- Les queries de task_labels
+
+Les queries de donnees de reference (subjects, themes, categories, labels) gardent `runQueryOnce: true` car elles changent rarement.
+
+### Impact
+- Les modifications de taches apparaissent immediatement dans l'UI
+- Plus besoin de changer d'onglet ou refresh pour voir les changements
+
+---
+
 ## 2026-01-23 19:15 - Use OPFSCoopSyncVFS for Safari/iOS (vraie solution)
 
 ### Fichiers modifies
