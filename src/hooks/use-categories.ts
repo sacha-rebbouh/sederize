@@ -31,7 +31,7 @@ export function useCategories() {
   const powerSyncResult = usePowerSyncWatchedQuery<Category>(
     'SELECT * FROM categories ORDER BY order_index ASC',
     [],
-    { runQueryOnce: true }
+    { runQueryOnce: false }
   );
 
   // Fallback to Supabase
@@ -71,13 +71,13 @@ export function useCategoriesWithThemes() {
   const categoriesResult = usePowerSyncWatchedQuery<Category>(
     'SELECT * FROM categories ORDER BY order_index ASC',
     [],
-    { runQueryOnce: true }
+    { runQueryOnce: false }
   );
 
   const themesResult = usePowerSyncWatchedQuery<Theme>(
     'SELECT * FROM themes ORDER BY order_index ASC',
     [],
-    { runQueryOnce: true }
+    { runQueryOnce: false }
   );
 
   // Combine categories with their themes
@@ -204,7 +204,7 @@ export function useCategory(id: string) {
   const powerSyncResult = usePowerSyncWatchedQuery<Category>(
     'SELECT * FROM categories WHERE id = ?',
     [id],
-    { runQueryOnce: true }
+    { runQueryOnce: false }
   );
 
   // Fallback to Supabase

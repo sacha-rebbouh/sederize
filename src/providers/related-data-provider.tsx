@@ -87,31 +87,31 @@ function RelatedDataProviderInner({ children }: { children: ReactNode }) {
   const subjectsResult = usePowerSyncWatchedQuery<Subject>(
     'SELECT * FROM subjects',
     [],
-    { runQueryOnce: true }
+    { runQueryOnce: false }
   );
 
   const themesResult = usePowerSyncWatchedQuery<Theme>(
     'SELECT * FROM themes',
     [],
-    { runQueryOnce: true }
+    { runQueryOnce: false }
   );
 
   const categoriesResult = usePowerSyncWatchedQuery<Category>(
     'SELECT * FROM categories',
     [],
-    { runQueryOnce: true }
+    { runQueryOnce: false }
   );
 
   const labelsResult = usePowerSyncWatchedQuery<Label>(
     'SELECT * FROM labels',
     [],
-    { runQueryOnce: true }
+    { runQueryOnce: false }
   );
 
   const taskLabelsResult = usePowerSyncWatchedQuery<TaskLabel>(
     'SELECT task_id, label_id FROM task_labels',
     [],
-    { runQueryOnce: true }
+    { runQueryOnce: false }
   );
 
   // Memoize the data to prevent unnecessary re-renders
