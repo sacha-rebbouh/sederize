@@ -34,16 +34,17 @@ export function useSubjects(themeId?: string) {
     : `SELECT * FROM subjects ORDER BY order_index ASC`;
   const subjectsParams = themeId ? [themeId] : [];
 
+  // runQueryOnce: true to prevent re-renders on sync events
   const subjectsResult = usePowerSyncWatchedQuery<Subject>(
     subjectsQuery,
     subjectsParams,
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const themesResult = usePowerSyncWatchedQuery<Theme>(
     'SELECT * FROM themes',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Join subjects with themes in memory
@@ -102,17 +103,17 @@ export function useActiveSubjects(options?: UseSubjectsOptions) {
   const isPowerSyncReady = usePowerSyncReady();
   const enabled = options?.enabled ?? true;
 
-  // PowerSync watched queries
+  // PowerSync watched queries - runQueryOnce: true to prevent re-renders on sync events
   const subjectsResult = usePowerSyncWatchedQuery<Subject>(
     `SELECT * FROM subjects WHERE status = 'active' ORDER BY order_index ASC`,
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const themesResult = usePowerSyncWatchedQuery<Theme>(
     'SELECT * FROM themes',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Join subjects with themes
@@ -165,17 +166,17 @@ export function useActiveSubjects(options?: UseSubjectsOptions) {
 export function useSubject(id: string) {
   const isPowerSyncReady = usePowerSyncReady();
 
-  // PowerSync watched queries
+  // PowerSync watched queries - runQueryOnce: true to prevent re-renders on sync events
   const subjectResult = usePowerSyncWatchedQuery<Subject>(
     'SELECT * FROM subjects WHERE id = ?',
     [id],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const themesResult = usePowerSyncWatchedQuery<Theme>(
     'SELECT * FROM themes',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Join subject with theme
@@ -233,17 +234,17 @@ export function useZombieSubjects() {
     return date.toISOString();
   }, []);
 
-  // PowerSync watched queries - filter zombies by last_activity_at
+  // PowerSync watched queries - runQueryOnce: true to prevent re-renders on sync events
   const subjectsResult = usePowerSyncWatchedQuery<Subject>(
     `SELECT * FROM subjects WHERE status = 'active' AND last_activity_at < ?`,
     [tenDaysAgo],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const themesResult = usePowerSyncWatchedQuery<Theme>(
     'SELECT * FROM themes',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Join subjects with themes

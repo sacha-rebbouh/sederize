@@ -25,11 +25,11 @@ interface TaskLabel {
 export function useLabels() {
   const isPowerSyncReady = usePowerSyncReady();
 
-  // PowerSync watched query
+  // PowerSync watched query - runQueryOnce: true to prevent re-renders on sync events
   const powerSyncResult = usePowerSyncWatchedQuery<Label>(
     'SELECT * FROM labels ORDER BY name ASC',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Fallback to Supabase
@@ -67,16 +67,18 @@ export function useTaskLabels(taskId: string) {
   const isPowerSyncReady = usePowerSyncReady();
 
   // PowerSync watched queries - join task_labels with labels
+  // task_labels needs runQueryOnce: false for real-time label assignment updates
   const taskLabelsResult = usePowerSyncWatchedQuery<TaskLabel>(
     'SELECT * FROM task_labels WHERE task_id = ?',
     [taskId],
     { runQueryOnce: false }
   );
 
+  // labels list is static reference data
   const labelsResult = usePowerSyncWatchedQuery<Label>(
     'SELECT * FROM labels',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Join in memory

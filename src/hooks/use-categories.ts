@@ -27,11 +27,11 @@ export interface CategoryWithThemes extends Category {
 export function useCategories() {
   const isPowerSyncReady = usePowerSyncReady();
 
-  // PowerSync watched query
+  // PowerSync watched query - runQueryOnce: true to prevent re-renders on sync events
   const powerSyncResult = usePowerSyncWatchedQuery<Category>(
     'SELECT * FROM categories ORDER BY order_index ASC',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Fallback to Supabase
@@ -67,17 +67,17 @@ export function useCategories() {
 export function useCategoriesWithThemes() {
   const isPowerSyncReady = usePowerSyncReady();
 
-  // PowerSync watched queries for categories and themes
+  // PowerSync watched queries for categories and themes - runQueryOnce: true to prevent re-renders on sync events
   const categoriesResult = usePowerSyncWatchedQuery<Category>(
     'SELECT * FROM categories ORDER BY order_index ASC',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const themesResult = usePowerSyncWatchedQuery<Theme>(
     'SELECT * FROM themes ORDER BY order_index ASC',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Combine categories with their themes
@@ -200,11 +200,11 @@ export function useCategoriesWithThemes() {
 export function useCategory(id: string) {
   const isPowerSyncReady = usePowerSyncReady();
 
-  // PowerSync watched query
+  // PowerSync watched query - runQueryOnce: true to prevent re-renders on sync events
   const powerSyncResult = usePowerSyncWatchedQuery<Category>(
     'SELECT * FROM categories WHERE id = ?',
     [id],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Fallback to Supabase

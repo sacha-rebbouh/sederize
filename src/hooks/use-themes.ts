@@ -22,11 +22,11 @@ export function useThemes(options?: UseThemesOptions) {
   const isPowerSyncReady = usePowerSyncReady();
   const enabled = options?.enabled ?? true;
 
-  // PowerSync watched query - reads from local SQLite, auto-updates on changes
+  // PowerSync watched query - runQueryOnce: true to prevent re-renders on sync events
   const powerSyncResult = usePowerSyncWatchedQuery<Theme>(
     'SELECT * FROM themes ORDER BY order_index ASC',
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Fallback to Supabase when PowerSync is not ready
@@ -63,11 +63,11 @@ export function useThemes(options?: UseThemesOptions) {
 export function useTheme(id: string) {
   const isPowerSyncReady = usePowerSyncReady();
 
-  // PowerSync watched query for single theme
+  // PowerSync watched query - runQueryOnce: true to prevent re-renders on sync events
   const powerSyncResult = usePowerSyncWatchedQuery<Theme>(
     'SELECT * FROM themes WHERE id = ?',
     [id],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // Fallback to Supabase

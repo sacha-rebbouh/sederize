@@ -1,5 +1,32 @@
 # Changes Log - Sederize
 
+## 2026-01-23 17:35 - Fix PowerSync auto-refresh on all pages
+
+### Fichiers modifies
+- `src/hooks/use-categories.ts`
+- `src/hooks/use-themes.ts`
+- `src/hooks/use-subjects.ts`
+- `src/hooks/use-labels.ts`
+
+### Probleme
+Les pages (Daily Brief, Toutes les taches, etc.) se rafraichissaient automatiquement sans interaction utilisateur. Cause: les `usePowerSyncWatchedQuery` avec `runQueryOnce: false` emettent de nouvelles references de donnees a chaque evenement de sync PowerSync, meme si les donnees n'ont pas change, ce qui cause des re-renders React.
+
+### Solution
+Changement de `runQueryOnce: false` a `runQueryOnce: true` pour les donnees de reference statiques:
+- `use-categories.ts`: 4 occurrences (useCategories, useCategoriesWithThemes, useCategory)
+- `use-themes.ts`: 2 occurrences (useThemes, useTheme)
+- `use-subjects.ts`: 8 occurrences (useSubjects, useActiveSubjects, useSubject, useZombieSubjects)
+- `use-labels.ts`: 2 occurrences (useLabels, labelsResult dans useTaskLabels)
+
+Note: task_labels garde `runQueryOnce: false` car il necessite des mises a jour temps reel pour l'assignation de labels.
+
+### Impact
+- Plus de rafraichissements automatiques intempestifs
+- UI stable sans re-renders constants
+- Performance amelioree
+
+---
+
 ## 2026-01-23 17:20 - Remove dead code from powersync hooks
 
 ### Fichiers modifies
