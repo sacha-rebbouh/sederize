@@ -165,7 +165,11 @@ export function PowerSyncProvider({ children }: { children: ReactNode }) {
         powerSync.disconnectAndClear().catch(console.error);
       }
     };
-  }, [user?.id, session?.access_token]);
+  // Only depend on user.id - NOT session.access_token
+  // Token refreshes should NOT trigger PowerSync re-initialization
+  // The SupabaseConnector handles token refreshes internally
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   // Check for pending changes periodically
   useEffect(() => {

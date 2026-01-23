@@ -1,5 +1,23 @@
 # Changes Log - Sederize
 
+## 2026-01-23 17:55 - Fix PowerSync reconnection loop on token refresh
+
+### Fichiers modifies
+- `src/providers/powersync-provider.tsx`
+
+### Probleme
+Toutes les pages crashaient apres ~10 secondes avec "impossible d'ouvrir cette page". Cause: l'effet d'initialisation PowerSync dependait de `session?.access_token`. Quand Supabase rafraichit automatiquement le token, ca declenchait:
+1. `setSession(session)` dans AuthProvider
+2. L'effet PowerSync se reexecute (car access_token change)
+3. PowerSync se deconnecte et se reconnecte
+4. Toutes les queries se reinitialisent
+5. Boucle → crash (memory exhaustion)
+
+### Solution
+Suppression de `session?.access_token` des dependances de l'effet. On ne depend plus que de `user?.id`. Le SupabaseConnector gere le rafraichissement du token en interne via `fetchCredentials()`.
+
+---
+
 ## 2026-01-23 17:45 - Fix crash caused by task_labels re-render cascade
 
 ### Fichiers modifies
