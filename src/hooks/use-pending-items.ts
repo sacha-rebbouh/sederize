@@ -36,8 +36,7 @@ export function usePendingItems(status?: PendingStatus) {
 
   const pendingResult = usePowerSyncWatchedQuery<PendingItem>(
     pendingQuery,
-    pendingParams,
-    { runQueryOnce: true }
+    pendingParams
   );
 
   // Fetch related data for joining
@@ -146,11 +145,9 @@ export function usePendingItems(status?: PendingStatus) {
 export function usePendingItemsCount() {
   const isPowerSyncReady = usePowerSyncReady();
 
-  // PowerSync watched query
   const powerSyncResult = usePowerSyncWatchedQuery<{ count: number }>(
     `SELECT COUNT(*) as count FROM pending_items WHERE status = 'pending'`,
-    [],
-    { runQueryOnce: true }
+    []
   );
 
   // Fallback to Supabase
@@ -188,11 +185,9 @@ export function usePendingItemsCount() {
 export function useOldestPendingItems(limit: number = 5) {
   const isPowerSyncReady = usePowerSyncReady();
 
-  // PowerSync watched queries
   const pendingResult = usePowerSyncWatchedQuery<PendingItem>(
     `SELECT * FROM pending_items WHERE status = 'pending' ORDER BY created_at ASC LIMIT ?`,
-    [limit],
-    { runQueryOnce: true }
+    [limit]
   );
 
   // Fetch related data
