@@ -1,5 +1,83 @@
 # Changes Log - Sederize
 
+## 2026-01-23 11:15 - Fix: Daily Brief slow navigation (4-5x slower than other pages)
+
+### Fichiers modifiés
+- `src/app/(app)/page.tsx`
+
+### Problème
+Sur la PWA, naviguer vers la page Daily Brief prenait 4-5x plus de temps que vers les autres pages.
+
+### Cause racine
+1. **MIN_WAIT_TIME = 1500ms** - La page forçait un délai artificiel de 1.5 secondes minimum avant d'afficher le contenu
+2. **Logique isReady complexe** - Multiple refs, états, et effets qui bloquaient le rendu en attendant PowerSync sync initial
+
+### Solution
+Simplification de la logique `isReady` :
+```typescript
+// Avant (bloquant)
+const [isReady, setIsReady] = useState(false);
+const mountTimeRef = useRef(Date.now());
+useEffect(() => {
+  // Logique complexe avec MIN_WAIT_TIME = 1500ms
+  // + attente isInitialSync
+  // + timeout scheduling
+}, [...]);
+
+// Après (instantané)
+const isReady = !tasksLoading || (displayTasks !== undefined && displayTasks.length > 0);
+```
+
+### Impact
+- Navigation vers Daily Brief maintenant aussi rapide que les autres pages
+- Suppression des imports/variables PowerSync inutilisés (`usePowerSyncState`, `usePowerSyncReady`, `isInitialSync`)
+
+---
+
+## 2026-01-22 19:30 - Fix PWA Crash: PowerSync flip-flop between modes
+
+### Fichiers modifiés
+- `src/providers/powersync-provider.tsx`
+
+### Problème
+L'app PWA crashait et flashait plusieurs fois en naviguant entre les pages (tasks, inbox, etc.) avec le message "un problème récurrent est survenu".
+
+### Cause racine
+`usePowerSyncReady()` dépendait de `isConnected` qui change fréquemment (perte réseau, sync status). Quand ça changeait :
+1. Tous les hooks `use-tasks.ts` basculaient de PowerSync vers Supabase
+2. Nouvelles requêtes Supabase lancées
+3. `isConnected` redevenait `true`
+4. Retour vers PowerSync
+5. = Flash/refresh multiples + crash
+
+### Solution
+1. Ajout de `isInitialized` qui reste `true` une fois PowerSync initialisé
+2. `usePowerSyncReady()` utilise maintenant `isInitialized` au lieu de `isConnected`
+3. Suppression de la dépendance `session?.access_token` dans le useEffect (évite réinit sur token refresh)
+4. Ajout d'une garde pour ne pas réinitialiser si déjà initialisé
+
+### Changements techniques
+```typescript
+// Avant (instable)
+export function usePowerSyncReady(): boolean {
+  const { db, isConnected } = usePowerSyncState();
+  return !!db && isConnected;
+}
+
+// Après (stable)
+export function usePowerSyncReady(): boolean {
+  const { isInitialized } = usePowerSyncState();
+  return isInitialized;
+}
+```
+
+### Impact
+- Plus de flash/crash lors de la navigation PWA
+- PowerSync reste en mode offline-first même si temporairement déconnecté
+- Les données locales sont toujours utilisées une fois initialisées
+
+---
+
 ## 2026-01-22 18:15 - Bugfix: Tâches terminées dans "En retard" + Traduction page Toutes les tâches
 
 ### Fichiers modifiés

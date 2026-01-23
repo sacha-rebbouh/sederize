@@ -41,7 +41,6 @@ import { TaskWithRelations, Theme, Task, Category } from '@/types/database';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { usePowerSyncState, usePowerSyncReady } from '@/providers/powersync-provider';
 
 type FilterType = 'all' | 'todo' | 'waiting' | 'inactive';
 
@@ -106,12 +105,6 @@ export default function DailyBriefPage() {
   const { data: themes } = useThemes();
   const updateTask = useUpdateTask();
 
-  // PowerSync state - detect initial sync
-  const { lastSyncedAt, isSyncing } = usePowerSyncState();
-  const isPowerSyncReady = usePowerSyncReady();
-  // True when PowerSync is active but hasn't completed first sync yet
-  const isInitialSync = isPowerSyncReady && (isSyncing || !lastSyncedAt);
-
   // Keep track of previous tasks to avoid flash during refetch
   const prevTasksRef = useRef<typeof tasks>(undefined);
   const hasEverHadTasks = useRef(false);
@@ -133,53 +126,8 @@ export default function DailyBriefPage() {
     return tasks;
   }, [tasks, isFetching]);
 
-  // Track if initial data has been loaded (to avoid showing empty state during initial fetch)
-  const [isReady, setIsReady] = useState(false);
-  const isReadyRef = useRef(false);
-  const mountTimeRef = useRef(Date.now());
-
-  useEffect(() => {
-    // Once ready, always ready (prevents flash on re-mount)
-    if (isReadyRef.current) {
-      if (!isReady) setIsReady(true);
-      return;
-    }
-
-    // If we have tasks, we're definitely ready
-    if (displayTasks && displayTasks.length > 0) {
-      isReadyRef.current = true;
-      setIsReady(true);
-      return;
-    }
-
-    // If PowerSync is doing initial sync, wait for it
-    if (isInitialSync) {
-      return;
-    }
-
-    // If fetching and we had tasks before, don't change ready state
-    if (isFetching && hasEverHadTasks.current) {
-      return;
-    }
-
-    // Loading finished with no tasks - but wait a minimum time to avoid false empty state
-    if (!tasksLoading && displayTasks !== undefined) {
-      const timeSinceMount = Date.now() - mountTimeRef.current;
-      const MIN_WAIT_TIME = 1500; // Wait at least 1.5s before showing empty state
-
-      if (timeSinceMount >= MIN_WAIT_TIME) {
-        isReadyRef.current = true;
-        setIsReady(true);
-      } else {
-        // Schedule ready state after remaining time
-        const timeout = setTimeout(() => {
-          isReadyRef.current = true;
-          setIsReady(true);
-        }, MIN_WAIT_TIME - timeSinceMount);
-        return () => clearTimeout(timeout);
-      }
-    }
-  }, [displayTasks, tasksLoading, isInitialSync, isFetching, isReady]);
+  // Ready when loading is done (or we have data)
+  const isReady = !tasksLoading || (displayTasks !== undefined && displayTasks.length > 0);
 
   // Cascade filter: themes filtered by category
   const filteredThemeOptions = useMemo(() => {
