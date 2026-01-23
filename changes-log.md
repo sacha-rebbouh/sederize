@@ -1,5 +1,36 @@
 # Changes Log - Sederize
 
+## 2026-01-23 13:00 - Remove ALL animations from All Tasks page
+
+### Fichiers modifiés
+- `src/app/(app)/tasks/page.tsx`
+
+### Problème
+La page "Toutes les tâches" se rafraîchissait visuellement 2-3 fois quand on y naviguait, et les cartes flashaient.
+
+### Cause
+Les watched queries PowerSync émettent plusieurs fois au chargement :
+1. Données du cache local
+2. Données après sync serveur
+3. Updates additionnels
+
+Chaque émission déclenchait un re-render, et les animations Framer Motion (`initial`, `staggerChildren`, etc.) rejouaient à chaque fois.
+
+### Solution
+**Suppression complète des animations Framer Motion sur cette page** :
+- Remplacé tous les `motion.div` par des `div` simples
+- Supprimé `containerVariants` et `itemVariants`
+- Supprimé `AnimatePresence`
+- Conservé uniquement la transition CSS pour la rotation du chevron
+
+### Impact
+- Plus de "refresh" visible
+- Plus de flash des cartes
+- Page statique et stable
+- Bundle size réduit (~150 bytes de moins)
+
+---
+
 ## 2026-01-23 12:30 - CRITICAL FIX: Centralized RelatedData to prevent query duplication
 
 ### Fichiers modifiés
