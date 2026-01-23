@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+import { motion, AnimatePresence } from 'framer-motion';
 import { isToday, isTomorrow, isPast, addDays, startOfDay, format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -207,15 +208,15 @@ function SortableTaskCard({ task }: { task: TaskWithRelations }) {
 
   return (
     <>
-      <div
+      <motion.div
         ref={setNodeRef}
-        style={{
-          ...style,
-          opacity: isDragging ? 0.5 : 1,
-        }}
+        style={style}
         {...attributes}
         {...listeners}
         onClick={handleClick}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: isDragging ? 0.5 : 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95 }}
         className={cn(
           'group p-3 rounded-xl border bg-card cursor-grab active:cursor-grabbing',
           'hover:shadow-md hover:border-primary/20 transition-all duration-200',
@@ -284,7 +285,7 @@ function SortableTaskCard({ task }: { task: TaskWithRelations }) {
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Task Focus Dialog */}
       {focusOpen && (
@@ -311,7 +312,12 @@ function DroppableColumn({
   });
 
   return (
-    <div className="flex-1 min-w-[300px] max-w-[400px]">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="flex-1 min-w-[300px] max-w-[400px]"
+    >
       <Card
         className={cn(
           'h-full flex flex-col transition-all duration-200',
@@ -320,9 +326,12 @@ function DroppableColumn({
       >
         <CardHeader className="pb-3 flex-shrink-0">
           <CardTitle className="text-base flex items-center gap-2">
-            <div className={cn('p-1.5 rounded-lg', column.bgColor)}>
+            <motion.div
+              className={cn('p-1.5 rounded-lg', column.bgColor)}
+              whileHover={{ scale: 1.1 }}
+            >
               <span className={column.color}>{column.icon}</span>
-            </div>
+            </motion.div>
             <span>{column.title}</span>
             <Badge
               variant="secondary"
@@ -340,27 +349,31 @@ function DroppableColumn({
               strategy={verticalListSortingStrategy}
             >
               <div className="space-y-2 pr-2 min-h-[100px] pb-24 md:pb-4">
-                {tasks.length === 0 ? (
-                  <div
-                    className={cn(
-                      'text-center py-8 text-sm text-muted-foreground border-2 border-dashed rounded-xl',
-                      'transition-colors duration-200',
-                      isOver && 'border-primary bg-primary/5 text-primary'
-                    )}
-                  >
-                    {isOver ? 'Deposer ici' : 'Aucune tache'}
-                  </div>
-                ) : (
-                  tasks.map((task) => (
-                    <SortableTaskCard key={task.id} task={task} />
-                  ))
-                )}
+                <AnimatePresence mode="sync">
+                  {tasks.length === 0 ? (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className={cn(
+                        'text-center py-8 text-sm text-muted-foreground border-2 border-dashed rounded-xl',
+                        'transition-colors duration-200',
+                        isOver && 'border-primary bg-primary/5 text-primary'
+                      )}
+                    >
+                      {isOver ? 'Deposer ici' : 'Aucune tache'}
+                    </motion.div>
+                  ) : (
+                    tasks.map((task) => (
+                      <SortableTaskCard key={task.id} task={task} />
+                    ))
+                  )}
+                </AnimatePresence>
               </div>
             </SortableContext>
           </ScrollArea>
         </CardContent>
       </Card>
-    </div>
+    </motion.div>
   );
 }
 
@@ -625,14 +638,25 @@ export default function KanbanPage() {
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="h-full flex flex-col"
+    >
       {/* Header */}
-      <div className="p-4 md:p-6 pb-4 space-y-4 flex-shrink-0">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="p-4 md:p-6 pb-4 space-y-4 flex-shrink-0"
+      >
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <motion.div
+              className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center"
+              whileHover={{ scale: 1.05 }}
+            >
               <KanbanIcon className="h-5 w-5 text-primary" />
-            </div>
+            </motion.div>
             <div>
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Kanban</h1>
               <p className="text-sm text-muted-foreground">
@@ -642,9 +666,13 @@ export default function KanbanPage() {
           </div>
 
           {/* Filter */}
-          <div>
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+          >
             <ThemeSubjectFilter value={filter} onChange={setFilter} />
-          </div>
+          </motion.div>
         </div>
 
         {/* View Mode Selector - compact on mobile */}
@@ -665,7 +693,7 @@ export default function KanbanPage() {
             </Button>
           ))}
         </div>
-      </div>
+      </motion.div>
 
       {/* Kanban Board */}
       <DndContext
@@ -712,20 +740,29 @@ export default function KanbanPage() {
         {/* Desktop: Horizontal Scroll */}
         <div className="hidden md:block flex-1 overflow-x-auto px-6 pb-6 min-h-0">
           <div className="flex gap-4 h-full min-w-max">
-            {columns.map((column) => (
-              <DroppableColumn
+            {columns.map((column, i) => (
+              <motion.div
                 key={column.id}
-                column={column}
-                tasks={tasksByColumn[column.id] || []}
-              />
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.1 }}
+                className="flex-1 min-w-[300px] max-w-[400px]"
+              >
+                <DroppableColumn
+                  column={column}
+                  tasks={tasksByColumn[column.id] || []}
+                />
+              </motion.div>
             ))}
           </div>
         </div>
 
         <DragOverlay>
           {activeTask && (
-            <div
-              className="p-3 rounded-xl border bg-card shadow-2xl w-[300px] scale-105 rotate-1"
+            <motion.div
+              initial={{ scale: 1, rotate: 0 }}
+              animate={{ scale: 1.05, rotate: 2 }}
+              className="p-3 rounded-xl border bg-card shadow-2xl w-[300px]"
             >
               <div className="flex items-start gap-2">
                 {(activeTask.category?.color_hex || activeTask.theme?.color_hex) && (
@@ -743,7 +780,7 @@ export default function KanbanPage() {
                   )}
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
         </DragOverlay>
       </DndContext>
@@ -786,6 +823,6 @@ export default function KanbanPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </motion.div>
   );
 }

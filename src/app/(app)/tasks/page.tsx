@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { isToday, isTomorrow, isPast, addDays } from 'date-fns';
 import {
   ListTodo,
@@ -57,6 +58,19 @@ function getDateLabel(date: string | null, status?: string): string {
   if (d <= nextWeek) return 'Cette semaine';
   return 'Plus tard';
 }
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.05 }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0 }
+};
 
 export default function AllTasksPage() {
   const [search, setSearch] = useState('');
@@ -351,9 +365,17 @@ export default function AllTasksPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="max-w-4xl mx-auto p-4 md:p-6 space-y-6"
+    >
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between"
+      >
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
             <ListTodo className="h-5 w-5 text-primary" />
@@ -376,10 +398,15 @@ export default function AllTasksPage() {
             {doneCount}
           </Badge>
         </div>
-      </div>
+      </motion.div>
 
       {/* Search and Filters */}
-      <div className="space-y-3">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="space-y-3"
+      >
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -509,52 +536,70 @@ export default function AllTasksPage() {
           </Select>
 
           {/* Clear Filters */}
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearFilters}
-              className="gap-1 flex-shrink-0"
-            >
-              <X className="h-3 w-3" />
-              Effacer
-            </Button>
-          )}
+          <AnimatePresence>
+            {hasActiveFilters && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="flex-shrink-0"
+              >
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearFilters}
+                  className="gap-1"
+                >
+                  <X className="h-3 w-3" />
+                  Effacer
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
           </div>
           {/* Fade gradient to hint more content - mobile only */}
           <div className="absolute right-0 top-0 bottom-2 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none md:hidden" />
         </div>
-      </div>
+      </motion.div>
 
       {/* Task List */}
       {filteredTasks.length === 0 ? (
-        <div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
           <EmptyState
             type={search ? 'search' : 'success'}
             title={search ? 'Aucune tâche trouvée' : 'Aucune tâche'}
             description={search ? 'Essayez un autre terme de recherche' : 'Créez votre première tâche pour commencer'}
           />
-        </div>
+        </motion.div>
       ) : (
-        <div className="space-y-4">
+        <motion.div
+          className="space-y-4"
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+        >
           {groupedTasks.map((group) => (
-            <div key={group.title}>
+            <motion.div key={group.title} variants={itemVariants}>
               <Collapsible
                 open={isGroupExpanded(group.title)}
                 onOpenChange={() => toggleGroup(group.title)}
               >
                 <Card className="overflow-hidden">
                   <CollapsibleTrigger asChild>
-                    <button
+                    <motion.button
                       className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+                      whileHover={{ backgroundColor: 'rgba(0,0,0,0.02)' }}
                     >
                       <div className="flex items-center gap-3">
-                        <div
-                          className="transition-transform duration-200"
-                          style={{ transform: isGroupExpanded(group.title) ? 'rotate(0deg)' : 'rotate(-90deg)' }}
+                        <motion.div
+                          animate={{ rotate: isGroupExpanded(group.title) ? 0 : -90 }}
+                          transition={{ duration: 0.2 }}
                         >
                           <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        </div>
+                        </motion.div>
                         {group.color && (
                           <div
                             className="h-3 w-3 rounded-full"
@@ -566,31 +611,33 @@ export default function AllTasksPage() {
                       <Badge variant="secondary" className="font-medium">
                         {group.tasks.length}
                       </Badge>
-                    </button>
+                    </motion.button>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <div className="border-t p-3 space-y-2 bg-muted/30">
-                      {group.tasks.map((task) => (
-                        <TaskCard
-                          key={task.id}
-                          task={task}
-                          theme={task.theme}
-                          labels={task.labels}
-                          showSubject
-                          subjectTitle={getHierarchyLabel(task)}
-                        />
-                      ))}
+                      <AnimatePresence mode="sync">
+                        {group.tasks.map((task) => (
+                          <TaskCard
+                            key={task.id}
+                            task={task}
+                            theme={task.theme}
+                            labels={task.labels}
+                            showSubject
+                            subjectTitle={getHierarchyLabel(task)}
+                          />
+                        ))}
+                      </AnimatePresence>
                     </div>
                   </CollapsibleContent>
                 </Card>
               </Collapsible>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
 
       {/* Bottom padding for FAB */}
       <div className="h-20 md:h-8" />
-    </div>
+    </motion.div>
   );
 }

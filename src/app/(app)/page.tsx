@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useEffect, useState, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { format, isBefore, startOfDay, addDays, subDays, isToday, isTomorrow, isYesterday } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -40,6 +41,7 @@ import { TaskWithRelations, Theme, Task, Category } from '@/types/database';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { usePowerSyncState, usePowerSyncReady } from '@/providers/powersync-provider';
 
 type FilterType = 'all' | 'todo' | 'waiting' | 'inactive';
 
@@ -73,6 +75,19 @@ function sortTasks(tasks: TaskWithRelations[]): TaskWithRelations[] {
   });
 }
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.03, duration: 0.2 }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.15 } }
+};
+
 export default function DailyBriefPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
@@ -90,6 +105,12 @@ export default function DailyBriefPage() {
   const { data: categories } = useCategories();
   const { data: themes } = useThemes();
   const updateTask = useUpdateTask();
+
+  // PowerSync state - detect initial sync
+  const { lastSyncedAt, isSyncing } = usePowerSyncState();
+  const isPowerSyncReady = usePowerSyncReady();
+  // True when PowerSync is active but hasn't completed first sync yet
+  const isInitialSync = isPowerSyncReady && (isSyncing || !lastSyncedAt);
 
   // Keep track of previous tasks to avoid flash during refetch
   const prevTasksRef = useRef<typeof tasks>(undefined);
@@ -112,8 +133,53 @@ export default function DailyBriefPage() {
     return tasks;
   }, [tasks, isFetching]);
 
-  // Ready when loading is done (or we have data)
-  const isReady = !tasksLoading || (displayTasks !== undefined && displayTasks.length > 0);
+  // Track if initial data has been loaded (to avoid showing empty state during initial fetch)
+  const [isReady, setIsReady] = useState(false);
+  const isReadyRef = useRef(false);
+  const mountTimeRef = useRef(Date.now());
+
+  useEffect(() => {
+    // Once ready, always ready (prevents flash on re-mount)
+    if (isReadyRef.current) {
+      if (!isReady) setIsReady(true);
+      return;
+    }
+
+    // If we have tasks, we're definitely ready
+    if (displayTasks && displayTasks.length > 0) {
+      isReadyRef.current = true;
+      setIsReady(true);
+      return;
+    }
+
+    // If PowerSync is doing initial sync, wait for it
+    if (isInitialSync) {
+      return;
+    }
+
+    // If fetching and we had tasks before, don't change ready state
+    if (isFetching && hasEverHadTasks.current) {
+      return;
+    }
+
+    // Loading finished with no tasks - but wait a minimum time to avoid false empty state
+    if (!tasksLoading && displayTasks !== undefined) {
+      const timeSinceMount = Date.now() - mountTimeRef.current;
+      const MIN_WAIT_TIME = 1500; // Wait at least 1.5s before showing empty state
+
+      if (timeSinceMount >= MIN_WAIT_TIME) {
+        isReadyRef.current = true;
+        setIsReady(true);
+      } else {
+        // Schedule ready state after remaining time
+        const timeout = setTimeout(() => {
+          isReadyRef.current = true;
+          setIsReady(true);
+        }, MIN_WAIT_TIME - timeSinceMount);
+        return () => clearTimeout(timeout);
+      }
+    }
+  }, [displayTasks, tasksLoading, isInitialSync, isFetching, isReady]);
 
   // Cascade filter: themes filtered by category
   const filteredThemeOptions = useMemo(() => {
@@ -272,15 +338,28 @@ export default function DailyBriefPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-6">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="max-w-3xl mx-auto p-4 md:p-6 space-y-6"
+    >
       {/* Header - Centered */}
-      <div className="text-center space-y-2">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-center space-y-2"
+      >
         <div className="relative flex items-center justify-center">
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Brief du jour</h1>
           {totalTasks === 0 && isToday(selectedDate) && (
-            <span className="absolute -right-8 md:-right-9">
+            <motion.span
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', delay: 0.3 }}
+              className="absolute -right-8 md:-right-9"
+            >
               <Sparkles className="h-6 w-6 text-amber-500" />
-            </span>
+            </motion.span>
           )}
         </div>
 
@@ -318,10 +397,15 @@ export default function DailyBriefPage() {
             </Button>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {/* Filters Row - Scrollable on mobile */}
-      <div className="relative">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="relative"
+      >
         <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
           <div className="flex items-center gap-2 min-w-max md:justify-center">
           <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -378,21 +462,34 @@ export default function DailyBriefPage() {
           </Select>
 
           {/* Clear Filters */}
-          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters} className="h-10 gap-1 text-xs flex-shrink-0">
-              <X className="h-3 w-3" />
-              Effacer
-            </Button>
-          )}
+          <AnimatePresence>
+            {hasActiveFilters && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+              >
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-10 gap-1 text-xs flex-shrink-0">
+                  <X className="h-3 w-3" />
+                  Effacer
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
           </div>
         </div>
         {/* Fade gradient to hint more content - mobile only */}
         <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none md:hidden" />
-      </div>
+      </motion.div>
 
       {/* Stats Row - Clickable Filters */}
-      <div className="grid grid-cols-3 gap-2 md:gap-3">
-        <div className="h-full">
+      <motion.div
+        className="grid grid-cols-3 gap-2 md:gap-3"
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+      >
+        <motion.div variants={itemVariants} className="h-full">
           <Card
             onClick={() => setActiveFilter(activeFilter === 'todo' ? 'all' : 'todo')}
             className={cn(
@@ -410,9 +507,9 @@ export default function DailyBriefPage() {
               </div>
             </div>
           </Card>
-        </div>
+        </motion.div>
 
-        <div className="h-full">
+        <motion.div variants={itemVariants} className="h-full">
           <Card
             onClick={() => setActiveFilter(activeFilter === 'waiting' ? 'all' : 'waiting')}
             className={cn(
@@ -430,9 +527,9 @@ export default function DailyBriefPage() {
               </div>
             </div>
           </Card>
-        </div>
+        </motion.div>
 
-        <div className="h-full">
+        <motion.div variants={itemVariants} className="h-full">
           <Card
             onClick={() => setActiveFilter(activeFilter === 'inactive' ? 'all' : 'inactive')}
             className={cn(
@@ -450,68 +547,102 @@ export default function DailyBriefPage() {
               </div>
             </div>
           </Card>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       {/* Active Filter Indicator */}
-      {activeFilter !== 'all' && (
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="gap-1">
-            Filtre : {activeFilter === 'todo' ? 'A faire' : activeFilter === 'waiting' ? 'En attente' : 'Sujets inactifs'}
-            <button
-              onClick={() => setActiveFilter('all')}
-              className="ml-1 hover:text-destructive"
-            >
-              &times;
-            </button>
-          </Badge>
-        </div>
-      )}
+      <AnimatePresence>
+        {activeFilter !== 'all' && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex items-center gap-2"
+          >
+            <Badge variant="secondary" className="gap-1">
+              Filtre : {activeFilter === 'todo' ? 'A faire' : activeFilter === 'waiting' ? 'En attente' : 'Sujets inactifs'}
+              <button
+                onClick={() => setActiveFilter('all')}
+                className="ml-1 hover:text-destructive"
+              >
+                &times;
+              </button>
+            </Badge>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* OVERDUE Section - Show when filter is 'all' or 'todo' */}
-      {overdueCount > 0 && (activeFilter === 'all' || activeFilter === 'todo') && (
-        <Card className="border-destructive/50 bg-gradient-to-br from-destructive/5 to-transparent overflow-hidden">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2 text-destructive">
-              <AlertCircle className="h-5 w-5" />
-              En retard
-              <Badge variant="destructive" className="ml-1">
-                {overdueCount}
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {overdueTasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                theme={task.theme}
-                labels={task.labels}
-                showSubject
-                subjectTitle={task.subject?.title}
-              />
-            ))}
-          </CardContent>
-        </Card>
-      )}
+      <AnimatePresence>
+        {overdueCount > 0 && (activeFilter === 'all' || activeFilter === 'todo') && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+          >
+            <Card className="border-destructive/50 bg-gradient-to-br from-destructive/5 to-transparent overflow-hidden">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2 text-destructive">
+                  <motion.div
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <AlertCircle className="h-5 w-5" />
+                  </motion.div>
+                  En retard
+                  <Badge variant="destructive" className="ml-1">
+                    {overdueCount}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <AnimatePresence mode="sync">
+                  {overdueTasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      theme={task.theme}
+                      labels={task.labels}
+                      showSubject
+                      subjectTitle={task.subject?.title}
+                    />
+                  ))}
+                </AnimatePresence>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Empty State - Show when filter is 'all' or 'todo' and no tasks (only after loading and sync) */}
       {totalTasks === 0 && (activeFilter === 'all' || activeFilter === 'todo') && (
-        <Card className="border-2 border-dashed">
-          <EmptyState
-            type="success"
-            title="Tout est fait !"
-            description="Aucune tache pour aujourd'hui. Profitez de votre liberte ou planifiez a l'avance."
-          />
-        </Card>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <Card className="border-2 border-dashed">
+            <EmptyState
+              type="success"
+              title="Tout est fait !"
+              description="Aucune tache pour aujourd'hui. Profitez de votre liberte ou planifiez a l'avance."
+            />
+          </Card>
+        </motion.div>
       )}
 
       {/* Grouped Tasks by Category > Theme - Show when filter is 'all' or 'todo' */}
       {(activeFilter === 'all' || activeFilter === 'todo') && (
-        <div className="space-y-8">
+        <motion.div
+          className="space-y-8"
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+        >
           {groupedByCategory.map((categoryGroup) => (
-            <div
+            <motion.div
               key={categoryGroup.category?.id || 'uncategorized'}
+              variants={itemVariants}
               className="space-y-4"
             >
               {/* Category Header - Centered, prominent */}
@@ -539,9 +670,10 @@ export default function DailyBriefPage() {
                     <div className="flex items-center gap-2">
                       {themeGroup.theme ? (
                         <>
-                          <div
+                          <motion.div
                             className="h-3 w-3 rounded-sm"
                             style={{ backgroundColor: themeGroup.theme.color_hex }}
+                            whileHover={{ scale: 1.2 }}
                           />
                           <h3 className="text-sm font-semibold text-foreground/80">{themeGroup.theme.title}</h3>
                           <Badge variant="secondary" className="text-xs font-medium">
@@ -561,138 +693,171 @@ export default function DailyBriefPage() {
 
                     {/* Tasks */}
                     <div className="space-y-2">
-                      {themeGroup.tasks.map((task) => {
-                        // Only show subject name as badge (theme/category already visible in grouping)
-                        const assignmentLabel = task.subject?.title || null;
-                        return (
-                        <div key={task.id} className="group relative">
-                          <TaskCard
-                            task={task}
-                            theme={task.theme}
-                            labels={task.labels}
-                            showSubject
-                            subjectTitle={assignmentLabel}
-                          />
-                          {/* Assign button for unassigned tasks */}
-                          {!themeGroup.theme && (
-                            <div className="absolute right-24 top-4 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 bg-primary/10 hover:bg-primary/20 rounded-lg"
-                                onClick={() => handleOpenAssignDialog(task)}
-                                title="Assigner à un sujet"
-                              >
-                                <FolderInput className="h-4 w-4 text-primary" />
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      );
-                      })}
+                      <AnimatePresence mode="sync">
+                        {themeGroup.tasks.map((task) => {
+                          // Only show subject name as badge (theme/category already visible in grouping)
+                          const assignmentLabel = task.subject?.title || null;
+                          return (
+                          <div key={task.id} className="group relative">
+                            <TaskCard
+                              task={task}
+                              theme={task.theme}
+                              labels={task.labels}
+                              showSubject
+                              subjectTitle={assignmentLabel}
+                            />
+                            {/* Assign button for unassigned tasks */}
+                            {!themeGroup.theme && (
+                              <div className="absolute right-24 top-4 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 bg-primary/10 hover:bg-primary/20 rounded-lg"
+                                  onClick={() => handleOpenAssignDialog(task)}
+                                  title="Assigner à un sujet"
+                                >
+                                  <FolderInput className="h-4 w-4 text-primary" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                        })}
+                      </AnimatePresence>
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
 
       {/* Waiting For Section - Show when filter is 'all' or 'waiting' */}
-      {waitingFor && waitingFor.length > 0 && (activeFilter === 'all' || activeFilter === 'waiting') && (
-        <div>
-          {activeFilter === 'all' && <Separator className="my-6" />}
+      <AnimatePresence>
+        {waitingFor && waitingFor.length > 0 && (activeFilter === 'all' || activeFilter === 'waiting') && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            {activeFilter === 'all' && <Separator className="my-6" />}
 
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Hourglass className="h-4 w-4 text-amber-500" />
-                <h2 className="font-semibold">En Attente</h2>
-                <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                  {waitingFor.length}
-                </Badge>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Hourglass className="h-4 w-4 text-amber-500" />
+                  <h2 className="font-semibold">En Attente</h2>
+                  <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                    {waitingFor.length}
+                  </Badge>
+                </div>
+                <Link href="/pending">
+                  <Button variant="ghost" size="sm" className="text-xs text-muted-foreground">
+                    Voir tout →
+                  </Button>
+                </Link>
               </div>
-              <Link href="/pending">
-                <Button variant="ghost" size="sm" className="text-xs text-muted-foreground">
-                  Voir tout →
-                </Button>
-              </Link>
-            </div>
 
-            <div className="space-y-2">
-              {waitingFor.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  theme={task.theme}
-                  labels={task.labels}
-                  showSubject
-                  subjectTitle={task.subject?.title}
-                />
-              ))}
+              <div className="space-y-2">
+                <AnimatePresence mode="sync">
+                  {waitingFor.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      theme={task.theme}
+                      labels={task.labels}
+                      showSubject
+                      subjectTitle={task.subject?.title}
+                    />
+                  ))}
+                </AnimatePresence>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Empty state for Waiting filter */}
       {activeFilter === 'waiting' && (!waitingFor || waitingFor.length === 0) && (
-        <Card className="border-2 border-dashed">
-          <EmptyState
-            type="success"
-            title="Rien en attente"
-            description="Aucune tâche en attente de réponse."
-          />
-        </Card>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <Card className="border-2 border-dashed">
+            <EmptyState
+              type="success"
+              title="Rien en attente"
+              description="Aucune tâche en attente de réponse."
+            />
+          </Card>
+        </motion.div>
       )}
 
       {/* Inactive Subjects Alert - Show when filter is 'all' or 'inactive' */}
-      {zombies && zombies.length > 0 && (activeFilter === 'all' || activeFilter === 'inactive') && (
-        <div>
-          {activeFilter === 'all' && <Separator className="my-6" />}
+      <AnimatePresence>
+        {zombies && zombies.length > 0 && (activeFilter === 'all' || activeFilter === 'inactive') && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+          >
+            {activeFilter === 'all' && <Separator className="my-6" />}
 
-          <Card className="border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-transparent">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber-500" />
-                Sujets inactifs
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-3">
-                Ces sujets n&apos;ont pas eu d&apos;activité depuis plus de 10 jours.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {zombies.map((subject) => (
-                  <Link key={subject.id} href={`/subject/${subject.id}`}>
-                    <Badge
-                      variant="outline"
-                      className="cursor-pointer hover:bg-accent hover:scale-105 transition-all"
+            <Card className="border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-transparent">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  Sujets inactifs
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Ces sujets n&apos;ont pas eu d&apos;activité depuis plus de 10 jours.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {zombies.map((subject, i) => (
+                    <motion.div
+                      key={subject.id}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: i * 0.05 }}
                     >
-                      <div
-                        className="h-2 w-2 rounded-full mr-1.5"
-                        style={{ backgroundColor: subject.theme?.color_hex }}
-                      />
-                      {subject.title}
-                    </Badge>
-                  </Link>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+                      <Link href={`/subject/${subject.id}`}>
+                        <Badge
+                          variant="outline"
+                          className="cursor-pointer hover:bg-accent hover:scale-105 transition-all"
+                        >
+                          <div
+                            className="h-2 w-2 rounded-full mr-1.5"
+                            style={{ backgroundColor: subject.theme?.color_hex }}
+                          />
+                          {subject.title}
+                        </Badge>
+                      </Link>
+                    </motion.div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Empty state for Inactive filter */}
       {activeFilter === 'inactive' && (!zombies || zombies.length === 0) && (
-        <Card className="border-2 border-dashed">
-          <EmptyState
-            type="success"
-            title="Tout est actif"
-            description="Aucun sujet inactif depuis plus de 10 jours."
-          />
-        </Card>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <Card className="border-2 border-dashed">
+            <EmptyState
+              type="success"
+              title="Tout est actif"
+              description="Aucun sujet inactif depuis plus de 10 jours."
+            />
+          </Card>
+        </motion.div>
       )}
 
       {/* Bottom padding for FAB */}
@@ -709,6 +874,6 @@ export default function DailyBriefPage() {
           subjectId: selectedTask?.subject_id || null,
         }}
       />
-    </div>
+    </motion.div>
   );
 }

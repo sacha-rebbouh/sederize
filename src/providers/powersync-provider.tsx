@@ -21,8 +21,6 @@ import { useAuth } from './auth-provider';
 interface PowerSyncState {
   /** The PowerSync database instance */
   db: PowerSyncDatabase | null;
-  /** Whether PowerSync has been successfully initialized (stays true once init) */
-  isInitialized: boolean;
   /** Whether PowerSync is connected to the server */
   isConnected: boolean;
   /** Whether PowerSync is currently syncing data */
@@ -44,7 +42,6 @@ interface PowerSyncState {
 // ============================================
 const PowerSyncStateContext = createContext<PowerSyncState>({
   db: null,
-  isInitialized: false,
   isConnected: false,
   isSyncing: false,
   hasPendingChanges: false,
@@ -58,11 +55,10 @@ const PowerSyncStateContext = createContext<PowerSyncState>({
 // PROVIDER
 // ============================================
 export function PowerSyncProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
 
   // State
   const [db, setDb] = useState<PowerSyncDatabase | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [hasPendingChanges, setHasPendingChanges] = useState(false);
@@ -72,14 +68,13 @@ export function PowerSyncProvider({ children }: { children: ReactNode }) {
 
   // Initialize PowerSync when user authenticates
   useEffect(() => {
-    // Skip if no user (session check happens via user existence)
-    if (!user) {
+    // Skip if no user or already initialized for this user
+    if (!user || !session) {
       // Clean up if user logs out
       if (db) {
         console.log('[PowerSync] User logged out, disconnecting...');
         db.disconnectAndClear().catch(console.error);
         setDb(null);
-        setIsInitialized(false);
         setIsConnected(false);
         setIsSyncing(false);
         setHasPendingChanges(false);
@@ -87,11 +82,6 @@ export function PowerSyncProvider({ children }: { children: ReactNode }) {
         setLastSyncedAt(null);
         setSyncError(null);
       }
-      return;
-    }
-
-    // Skip if already initialized for this user
-    if (isInitialized && db) {
       return;
     }
 
@@ -154,7 +144,6 @@ export function PowerSyncProvider({ children }: { children: ReactNode }) {
 
         if (isMounted) {
           setDb(powerSync);
-          setIsInitialized(true);
           setSyncError(null);
           console.log('[PowerSync] Connected successfully');
         }
@@ -176,10 +165,7 @@ export function PowerSyncProvider({ children }: { children: ReactNode }) {
         powerSync.disconnectAndClear().catch(console.error);
       }
     };
-  // Only depend on user?.id - the connector handles token refresh internally
-  // isInitialized and db are read but not dependencies to avoid re-init loops
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [user?.id, session?.access_token]);
 
   // Check for pending changes periodically
   useEffect(() => {
@@ -233,7 +219,6 @@ export function PowerSyncProvider({ children }: { children: ReactNode }) {
   const contextValue = useMemo<PowerSyncState>(
     () => ({
       db,
-      isInitialized,
       isConnected,
       isSyncing,
       hasPendingChanges,
@@ -244,7 +229,6 @@ export function PowerSyncProvider({ children }: { children: ReactNode }) {
     }),
     [
       db,
-      isInitialized,
       isConnected,
       isSyncing,
       hasPendingChanges,
@@ -295,11 +279,9 @@ export function usePowerSyncDb(): PowerSyncDatabase | null {
 }
 
 /**
- * Check if PowerSync is ready (initialized).
- * Once initialized, returns true even if temporarily disconnected.
- * This prevents flip-flopping between PowerSync and Supabase modes.
+ * Check if PowerSync is ready (initialized and connected)
  */
 export function usePowerSyncReady(): boolean {
-  const { isInitialized } = usePowerSyncState();
-  return isInitialized;
+  const { db, isConnected } = usePowerSyncState();
+  return !!db && isConnected;
 }

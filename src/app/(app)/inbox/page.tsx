@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Inbox as InboxIcon, Plus, FolderInput, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
@@ -18,6 +19,19 @@ import { queryKeys } from '@/lib/query-keys';
 import { parseTaskInput, findMatchingLabels } from '@/lib/date-parser';
 import { format } from 'date-fns';
 import { Task, TaskWithRelations } from '@/types/database';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.05 }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0 }
+};
 
 export default function InboxPage() {
   const [newTask, setNewTask] = useState('');
@@ -143,13 +157,24 @@ export default function InboxPage() {
   const taskCount = tasks?.length || 0;
 
   return (
-    <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-6">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="max-w-3xl mx-auto p-4 md:p-6 space-y-6"
+    >
       {/* Header */}
-      <div className="space-y-1">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="space-y-1"
+      >
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+          <motion.div
+            className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center"
+            whileHover={{ scale: 1.05 }}
+          >
             <InboxIcon className="h-5 w-5 text-blue-500" />
-          </div>
+          </motion.div>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Inbox</h1>
@@ -164,10 +189,13 @@ export default function InboxPage() {
             </p>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Quick Add */}
-      <form
+      <motion.form
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
         onSubmit={handleAddTask}
         className="flex gap-2"
       >
@@ -186,7 +214,12 @@ export default function InboxPage() {
           className="h-12 px-6"
         >
           {isSubmitting ? (
-            <Sparkles className="h-4 w-4 animate-spin" />
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+            >
+              <Sparkles className="h-4 w-4" />
+            </motion.div>
           ) : (
             <>
               <Plus className="h-4 w-4 mr-1" />
@@ -194,51 +227,75 @@ export default function InboxPage() {
             </>
           )}
         </Button>
-      </form>
+      </motion.form>
 
       {/* Empty State */}
       {taskCount === 0 && (
-        <Card className="border-2 border-dashed">
-          <EmptyState
-            type="inbox"
-            title="Boite vide !"
-            description="Rien a traiter. Utilisez l'ajout rapide ci-dessus pour capturer de nouvelles taches."
-          />
-        </Card>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <Card className="border-2 border-dashed">
+            <EmptyState
+              type="inbox"
+              title="Boite vide !"
+              description="Rien a traiter. Utilisez l'ajout rapide ci-dessus pour capturer de nouvelles taches."
+            />
+          </Card>
+        </motion.div>
       )}
 
       {/* Tasks */}
       {taskCount > 0 && (
-        <div className="space-y-2">
-          {tasks?.map((task) => (
-            <div
-              key={task.id}
-              className="group relative"
-            >
-              <TaskCard task={task} labels={task.labels} />
+        <motion.div
+          className="space-y-2"
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+        >
+          <AnimatePresence mode="sync">
+            {tasks?.map((task) => (
+              <motion.div
+                key={task.id}
+                variants={itemVariants}
+                layout
+                className="group relative"
+              >
+                <TaskCard task={task} labels={task.labels} />
 
-              {/* Move to Subject Button - visible on mobile, hover on desktop */}
-              <div className="absolute right-24 top-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 bg-primary/10 hover:bg-primary/20 rounded-lg"
-                  onClick={() => handleOpenAssignDialog(task)}
-                  title="Deplacer vers un sujet"
+                {/* Move to Subject Button - visible on mobile, hover on desktop */}
+                <motion.div
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="absolute right-24 top-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10"
                 >
-                  <FolderInput className="h-4 w-4 text-primary" />
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 bg-primary/10 hover:bg-primary/20 rounded-lg"
+                    onClick={() => handleOpenAssignDialog(task)}
+                    title="Deplacer vers un sujet"
+                  >
+                    <FolderInput className="h-4 w-4 text-primary" />
+                  </Button>
+                </motion.div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </motion.div>
       )}
 
       {/* Tip */}
       {taskCount > 0 && (
-        <p className="text-xs text-center text-muted-foreground">
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="text-xs text-center text-muted-foreground"
+        >
           Survolez une tache et cliquez sur <FolderInput className="inline h-3 w-3" /> pour la deplacer vers un sujet
-        </p>
+        </motion.p>
       )}
 
       {/* Bottom padding for FAB */}
@@ -255,6 +312,6 @@ export default function InboxPage() {
           subjectId: selectedTask?.subject_id || null,
         }}
       />
-    </div>
+    </motion.div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
-import { createClient, markSessionActive } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 
 interface AuthContextType {
   user: User | null;
@@ -29,13 +29,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-
-      // If we have a valid session, mark it as active
-      // This creates the session-active cookie that the middleware checks
-      if (session) {
-        markSessionActive();
-      }
-
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
@@ -47,11 +40,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
-      // Mark session active on any auth change that results in a valid session
-      if (session) {
-        markSessionActive();
-      }
-
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);

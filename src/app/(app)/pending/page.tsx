@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Clock,
   Hourglass,
@@ -97,7 +98,11 @@ export default function PendingPage() {
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-6 pt-6 md:pt-8 space-y-6">
       {/* Header */}
-      <div className="space-y-1">
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="space-y-1"
+      >
         <div className="flex items-center gap-2">
           <Hourglass className="h-6 w-6 text-amber-500" />
           <h1 className="text-2xl font-bold">En Attente</h1>
@@ -105,10 +110,15 @@ export default function PendingPage() {
         <p className="text-muted-foreground">
           Tâches en attente d&apos;un retour externe
         </p>
-      </div>
+      </motion.div>
 
       {/* Stats + Search */}
-      <div className="flex items-center justify-between gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="flex items-center justify-between gap-4"
+      >
         <Card className="flex-1">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
@@ -138,7 +148,7 @@ export default function PendingPage() {
             className="pl-9"
           />
         </div>
-      </div>
+      </motion.div>
 
       {/* Task List */}
       <ScrollArea className="h-[calc(100vh-300px)]">
@@ -151,7 +161,10 @@ export default function PendingPage() {
             ))}
           </div>
         ) : filteredTasks.length === 0 ? (
-          <div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
             <Card className="border-2 border-dashed">
               <EmptyState
                 type="success"
@@ -163,12 +176,15 @@ export default function PendingPage() {
                 }
               />
             </Card>
-          </div>
+          </motion.div>
         ) : (
           <div className="space-y-8">
-            {groupedTasks.map((categoryGroup) => (
-              <div
+            {groupedTasks.map((categoryGroup, catIndex) => (
+              <motion.div
                 key={categoryGroup.category?.id || 'unassigned'}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: catIndex * 0.05 }}
                 className="space-y-4"
               >
                 {/* Category Header */}
@@ -194,9 +210,12 @@ export default function PendingPage() {
 
                 {/* Themes within category */}
                 <div className="space-y-6 pl-4">
-                  {categoryGroup.themes.map((themeGroup) => (
-                    <div
+                  {categoryGroup.themes.map((themeGroup, themeIndex) => (
+                    <motion.div
                       key={themeGroup.theme?.id || 'no-theme'}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: themeIndex * 0.03 }}
                       className="space-y-3"
                     >
                       {/* Theme Header */}
@@ -221,27 +240,34 @@ export default function PendingPage() {
                       </div>
 
                       {/* Tasks */}
-                      <div className="space-y-2">
-                        {themeGroup.tasks.map((task) => {
-                          const hierarchy = getHierarchyLabel(task);
-                          return (
-                            <div key={task.id}>
-                              <TaskCard
-                                task={task}
-                                theme={task.theme}
-                                labels={task.labels}
-                                showSubject
-                                subjectTitle={hierarchy || task.subject?.title}
-                                showTimestamp
-                              />
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
+                      <AnimatePresence mode="sync">
+                        <div className="space-y-2">
+                          {themeGroup.tasks.map((task, taskIndex) => {
+                            const hierarchy = getHierarchyLabel(task);
+                            return (
+                              <motion.div
+                                key={task.id}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: taskIndex * 0.03 }}
+                              >
+                                <TaskCard
+                                  task={task}
+                                  theme={task.theme}
+                                  labels={task.labels}
+                                  showSubject
+                                  subjectTitle={hierarchy || task.subject?.title}
+                                  showTimestamp
+                                />
+                              </motion.div>
+                            );
+                          })}
+                        </div>
+                      </AnimatePresence>
+                    </motion.div>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         )}
