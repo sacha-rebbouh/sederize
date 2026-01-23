@@ -1,5 +1,29 @@
 # Changes Log - Sederize
 
+## 2026-01-23 18:30 - Set ALL PowerSync queries to runQueryOnce: true
+
+### Fichiers modifies
+- `src/hooks/use-tasks.ts` (11 queries)
+- `src/hooks/use-pending-items.ts` (11 queries)
+- `src/hooks/use-labels.ts` (1 query)
+- `src/lib/powersync/hooks.ts` (useWatchedQuery helper)
+
+### Probleme
+Malgre les optimisations precedentes, l'app crashait encore sur iOS Safari apres ~35 secondes. Les watched queries avec `runQueryOnce: false` continuaient d'emettre des nouvelles references de donnees a chaque evenement de sync PowerSync, causant une accumulation de memoire.
+
+### Solution radicale
+Passage de TOUTES les queries PowerSync a `runQueryOnce: true`. Cela signifie:
+- Les donnees se chargent une fois au mount du composant
+- Pas de mises a jour en temps reel
+- Les donnees se rafraichissent a la navigation (changement de page)
+
+### Impact UX
+- Plus de crash sur iOS Safari
+- Les nouvelles taches/modifications apparaissent apres navigation, pas immediatement
+- Compromis acceptable pour la stabilite
+
+---
+
 ## 2026-01-23 18:15 - Reduce PowerSync state updates and query re-renders
 
 ### Fichiers modifies
