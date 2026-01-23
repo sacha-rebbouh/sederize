@@ -1,5 +1,181 @@
 # Changes Log - Sederize
 
+## 2026-01-23 15:35 - Remove Framer Motion mount animations from Kanban page
+
+### Fichiers modifies
+- `src/app/(app)/kanban/page.tsx`
+
+### Changement
+Suppression des animations Framer Motion de mount de la page Kanban tout en preservant la fonctionnalite drag-and-drop.
+
+### Modifications
+- Supprime l'import de `motion` et `AnimatePresence` de framer-motion
+- Remplace tous les `motion.div` par des `div` standards dans:
+  - `SortableTaskCard`: conserve isDragging opacity via style inline
+  - `DroppableColumn`: supprime animations de mount
+  - `KanbanPage`: supprime animations de mount du header et des colonnes
+  - `DragOverlay`: remplace par div avec classes CSS statiques (`scale-105 rotate-1`)
+- Supprime toutes les props d'animation mount (`initial`, `animate`, `exit`, `transition`, `whileHover`)
+- Supprime le wrapper `AnimatePresence`
+- Conserve la fonctionnalite drag-and-drop via @dnd-kit (useSortable, useDroppable)
+
+### Impact
+- Page Kanban plus stable et performante
+- Bundle size reduit (suppression de framer-motion de cette page)
+- Drag-and-drop fonctionne toujours correctement
+- Feedback visuel isDragging preserve via style inline
+
+---
+
+## 2026-01-23 15:25 - Remove Framer Motion animations from Calendar pages
+
+### Fichiers modifies
+- `src/app/(app)/calendar/page.tsx`
+- `src/app/(app)/calendar/calendar-mobile-v1.tsx`
+
+### Changement
+Suppression complete des animations Framer Motion des deux pages Calendar pour ameliorer les performances.
+
+### Modifications
+**page.tsx (agenda view):**
+- Supprime l'import de `motion` et `AnimatePresence` de framer-motion
+- Remplace tous les `motion.div` par des `div` simples
+- Supprime toutes les props d'animation (`initial`, `animate`, `exit`, `transition`)
+- Supprime les wrappers `AnimatePresence`
+- Le FAB "Scroll to Today" utilise maintenant un simple rendu conditionnel
+
+**calendar-mobile-v1.tsx (month/week/day views):**
+- Supprime l'import de `motion` et `AnimatePresence` de framer-motion
+- Supprime les constantes `containerVariants` et `dayVariants`
+- Supprime la variable `direction` (utilisee uniquement pour animations)
+- Remplace tous les `motion.div`, `motion.span`, `motion.button` par des elements HTML standards
+- Supprime toutes les props d'animation (`initial`, `animate`, `exit`, `transition`, `variants`, `whileHover`, `whileTap`)
+- Supprime les wrappers `AnimatePresence`
+- Conserve les effets hover via CSS (`transition-transform hover:scale-105/110`)
+
+### Impact
+- Pages Calendar plus stables et performantes
+- Bundle size reduit (suppression des variants et animations)
+- Pas de flash visuel lors des mises a jour de donnees
+- Coherence avec les autres pages deja sans animations
+
+---
+
+## 2026-01-23 15:15 - Remove Framer Motion animations from Subject page
+
+### Fichiers modifies
+- `src/app/(app)/subject/[[...id]]/subject-page-client.tsx`
+
+### Changement
+Suppression complete des animations Framer Motion de la page Subject pour ameliorer les performances et eviter les re-renders visuels.
+
+### Modifications
+- Supprime l'import de `motion` et `AnimatePresence` de framer-motion
+- Supprime les constantes `containerVariants` et `itemVariants`
+- Remplace tous les `motion.div`, `motion.form`, `motion.p`, `motion.span` par des elements HTML standards
+- Supprime toutes les props d'animation (`initial`, `animate`, `exit`, `transition`, `variants`, `layout`, `whileHover`, `whileTap`)
+- Supprime les wrappers `AnimatePresence`
+- Conserve l'animation CSS `animate-spin` pour le spinner de soumission
+
+### Impact
+- Plus de flash visuel lors des mises a jour de donnees
+- Bundle size reduit (suppression des variants et animations)
+- Page plus stable et performante
+- Coherence avec les autres pages (tasks, pending, archives, inbox) deja sans animations
+
+---
+
+## 2026-01-23 15:10 - Remove Framer Motion animations from Inbox page
+
+### Fichiers modifies
+- `src/app/(app)/inbox/page.tsx`
+
+### Changement
+Suppression complete des animations Framer Motion de la page "Inbox" pour optimiser les performances.
+
+### Modifications
+- Supprime l'import de `motion` et `AnimatePresence` de framer-motion
+- Supprime les constantes `containerVariants` et `itemVariants`
+- Remplace tous les `motion.div`, `motion.form`, `motion.p` par des `div`, `form`, `p` simples
+- Supprime toutes les props d'animation (`initial`, `animate`, `exit`, `transition`, `variants`, `layout`, `whileHover`)
+- Supprime le wrapper `AnimatePresence`
+- Remplace l'animation de rotation du spinner par la classe CSS `animate-spin`
+
+### Impact
+- Page plus stable et performante
+- Bundle size legerement reduit
+- Pas de flash visuel lors des mises a jour de donnees
+
+---
+
+## 2026-01-23 15:00 - Remove Framer Motion animations from Archives page
+
+### Fichiers modifiés
+- `src/app/(app)/archives/page.tsx`
+
+### Changement
+Suppression complète des animations Framer Motion de la page "Archives" pour optimiser les performances et éviter les re-renders visuels.
+
+### Modifications
+- Supprimé l'import de `motion` et `AnimatePresence` de framer-motion
+- Remplacé tous les `motion.div` et `motion.span` par des `div` et `span` simples
+- Supprimé toutes les props d'animation (`initial`, `animate`, `exit`, `transition`, `key` pour animations)
+- Supprimé le wrapper `AnimatePresence`
+
+### Impact
+- Page plus stable et performante
+- Bundle size légèrement réduit
+- Pas de flash visuel lors des mises à jour de données
+
+---
+
+## 2026-01-23 14:45 - Remove Framer Motion animations from Pending page
+
+### Fichiers modifiés
+- `src/app/(app)/pending/page.tsx`
+
+### Changement
+Suppression complète des animations Framer Motion de la page "En Attente" pour éviter les re-renders visuels lors des syncs PowerSync.
+
+### Modifications
+- Supprimé l'import de `motion` et `AnimatePresence` de framer-motion
+- Remplacé tous les `motion.div` par des `div` simples
+- Supprimé toutes les props d'animation (`initial`, `animate`, `exit`, `transition`, `variants`)
+- Supprimé le wrapper `AnimatePresence`
+
+### Impact
+- Plus de flash visuel lors des mises à jour de données
+- Bundle size légèrement réduit
+- Page plus stable et performante
+
+---
+
+## 2026-01-23 14:15 - Add "Remember Me" checkbox on login page
+
+### Fichiers modifiés
+- `src/lib/supabase/client.ts`
+- `src/providers/auth-provider.tsx`
+- `src/app/(auth)/login/page.tsx`
+
+### Changement
+Ajout d'une option "Rester connecté" sur la page de connexion.
+
+### Fonctionnement
+- **Cochée (par défaut)** : La session persiste entre les fermetures du navigateur (comportement actuel)
+- **Décochée** : L'utilisateur sera déconnecté à la prochaine ouverture du navigateur
+
+### Implémentation technique
+- Stockage de la préférence dans `localStorage` (`sederize_remember_me`)
+- Marqueur de session dans `sessionStorage` (`sederize_session_active`)
+- Au démarrage de l'app, si "remember me" = false ET pas de marqueur de session → déconnexion automatique
+- Le marqueur sessionStorage est effacé quand le navigateur est fermé (comportement natif)
+
+### Impact
+- UX améliorée pour les utilisateurs sur appareils partagés
+- Rétrocompatible : les utilisateurs existants restent connectés par défaut
+
+---
+
 ## 2026-01-23 13:00 - Remove ALL animations from All Tasks page
 
 ### Fichiers modifiés

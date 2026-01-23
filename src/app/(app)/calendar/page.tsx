@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   format,
   addDays,
@@ -291,79 +290,74 @@ export default function CalendarPage() {
               </p>
             </div>
           ) : (
-            <AnimatePresence mode="sync">
-              {daySections.map((section, sectionIndex) => (
-                <motion.div
-                  key={section.dateKey}
-                  id={`day-${section.dateKey}`}
-                  ref={isToday(section.date) && !section.isOverdue ? todayRef : undefined}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: sectionIndex * 0.02 }}
+            daySections.map((section) => (
+              <div
+                key={section.dateKey}
+                id={`day-${section.dateKey}`}
+                ref={isToday(section.date) && !section.isOverdue ? todayRef : undefined}
+              >
+                {/* Day Header - Sticky */}
+                <div
+                  className={cn(
+                    'sticky top-0 z-10 px-4 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b',
+                    section.isOverdue && 'bg-destructive/5',
+                    isToday(section.date) && !section.isOverdue && 'bg-primary/5',
+                    selectedDate && isSameDay(section.date, selectedDate) && !section.isOverdue && 'bg-purple-500/10 border-l-2 border-l-purple-500'
+                  )}
                 >
-                  {/* Day Header - Sticky */}
-                  <div
-                    className={cn(
-                      'sticky top-0 z-10 px-4 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b',
-                      section.isOverdue && 'bg-destructive/5',
-                      isToday(section.date) && !section.isOverdue && 'bg-primary/5',
-                      selectedDate && isSameDay(section.date, selectedDate) && !section.isOverdue && 'bg-purple-500/10 border-l-2 border-l-purple-500'
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {section.isOverdue ? (
-                          <span className="text-sm font-semibold text-destructive">
-                            En retard
-                          </span>
-                        ) : (
-                          <>
-                            <span
-                              className={cn(
-                                'text-sm font-semibold',
-                                isToday(section.date) && 'text-primary',
-                                selectedDate && isSameDay(section.date, selectedDate) && 'text-purple-600'
-                              )}
-                            >
-                              {formatDayHeader(section.date)}
-                            </span>
-                            {!isToday(section.date) && !isTomorrow(section.date) && !isYesterday(section.date) && (
-                              <span className="text-xs text-muted-foreground">
-                                {format(section.date, 'd MMM', { locale: fr })}
-                              </span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {section.isOverdue ? (
+                        <span className="text-sm font-semibold text-destructive">
+                          En retard
+                        </span>
+                      ) : (
+                        <>
+                          <span
+                            className={cn(
+                              'text-sm font-semibold',
+                              isToday(section.date) && 'text-primary',
+                              selectedDate && isSameDay(section.date, selectedDate) && 'text-purple-600'
                             )}
-                          </>
-                        )}
-                      </div>
-                      <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                        {section.tasks.length}
-                      </span>
+                          >
+                            {formatDayHeader(section.date)}
+                          </span>
+                          {!isToday(section.date) && !isTomorrow(section.date) && !isYesterday(section.date) && (
+                            <span className="text-xs text-muted-foreground">
+                              {format(section.date, 'd MMM', { locale: fr })}
+                            </span>
+                          )}
+                        </>
+                      )}
                     </div>
+                    <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                      {section.tasks.length}
+                    </span>
                   </div>
+                </div>
 
-                  {/* Tasks for this day */}
-                  <div className="p-3 space-y-2 bg-muted/20">
-                    {section.tasks.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        Aucune tâche
-                      </p>
-                    ) : (
-                      section.tasks.map((task) => (
-                        <TaskCard
-                          key={task.id}
-                          task={task}
-                          theme={task.theme}
-                          labels={task.labels}
-                          showSubject
-                          subjectTitle={task.subject?.title}
-                          compact
-                        />
-                      ))
-                    )}
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+                {/* Tasks for this day */}
+                <div className="p-3 space-y-2 bg-muted/20">
+                  {section.tasks.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Aucune tâche
+                    </p>
+                  ) : (
+                    section.tasks.map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        theme={task.theme}
+                        labels={task.labels}
+                        showSubject
+                        subjectTitle={task.subject?.title}
+                        compact
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+            ))
           )}
 
           {/* Load More */}
@@ -385,26 +379,21 @@ export default function CalendarPage() {
       </div>
 
       {/* Scroll to Today FAB */}
-      <AnimatePresence>
-        {showScrollToTop && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            className="fixed right-4 z-50"
-            style={{ bottom: 'calc(6rem + env(safe-area-inset-bottom, 0px))' }}
+      {showScrollToTop && (
+        <div
+          className="fixed right-4 z-50"
+          style={{ bottom: 'calc(6rem + env(safe-area-inset-bottom, 0px))' }}
+        >
+          <Button
+            size="sm"
+            className="rounded-full shadow-lg gap-1"
+            onClick={scrollToToday}
           >
-            <Button
-              size="sm"
-              className="rounded-full shadow-lg gap-1"
-              onClick={scrollToToday}
-            >
-              <ChevronUp className="h-4 w-4" />
-              Aujourd&apos;hui
-            </Button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <ChevronUp className="h-4 w-4" />
+            Aujourd&apos;hui
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

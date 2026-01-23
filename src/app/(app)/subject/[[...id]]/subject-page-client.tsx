@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   Folder,
@@ -37,19 +36,6 @@ import { SkeletonCard, SkeletonHeader } from '@/components/ui/skeleton-card';
 import { useSubject, useUpdateSubject, useDeleteSubject } from '@/hooks/use-subjects';
 import { useSubjectTasks, useCreateTask } from '@/hooks/use-tasks';
 import { parseTaskInput } from '@/lib/date-parser';
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.05 }
-  }
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0 }
-};
 
 export default function SubjectPage() {
   const router = useRouter();
@@ -145,11 +131,7 @@ export default function SubjectPage() {
   // Handle no ID provided
   if (!subjectId) {
     return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="flex items-center justify-center h-full"
-      >
+      <div className="flex items-center justify-center h-full">
         <EmptyState
           type="folder"
           title="No subject selected"
@@ -160,7 +142,7 @@ export default function SubjectPage() {
             </Button>
           }
         />
-      </motion.div>
+      </div>
     );
   }
 
@@ -190,11 +172,7 @@ export default function SubjectPage() {
 
   if (!subject) {
     return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="flex items-center justify-center h-full"
-      >
+      <div className="flex items-center justify-center h-full">
         <EmptyState
           type="folder"
           title="Subject not found"
@@ -205,22 +183,14 @@ export default function SubjectPage() {
             </Button>
           }
         />
-      </motion.div>
+      </div>
     );
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="h-full flex flex-col"
-    >
+    <div className="h-full flex flex-col">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="border-b p-4"
-      >
+      <div className="border-b p-4">
         <div className="max-w-5xl mx-auto space-y-3">
           {/* Breadcrumbs - Desktop only */}
           <Breadcrumbs
@@ -244,17 +214,15 @@ export default function SubjectPage() {
                 <ArrowLeft className="h-5 w-5" />
               </Button>
 
-              <motion.div
+              <div
                 className="h-10 w-10 rounded-lg flex items-center justify-center"
                 style={{ backgroundColor: subject.theme?.color_hex + '20' }}
-                whileHover={{ scale: 1.05, rotate: 5 }}
-                whileTap={{ scale: 0.95 }}
               >
                 <Folder
                   className="h-5 w-5"
                   style={{ color: subject.theme?.color_hex }}
                 />
-              </motion.div>
+              </div>
 
               <div>
                 <h1 className="text-xl font-bold">{subject.title}</h1>
@@ -278,11 +246,9 @@ export default function SubjectPage() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button variant="ghost" size="icon">
-                    <MoreHorizontal className="h-5 w-5" />
-                  </Button>
-                </motion.div>
+                <Button variant="ghost" size="icon">
+                  <MoreHorizontal className="h-5 w-5" />
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={handleArchive}>
@@ -298,18 +264,13 @@ export default function SubjectPage() {
             </DropdownMenu>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Content */}
       <div className="flex-1 overflow-hidden">
         <div className="max-w-5xl mx-auto h-full">
           <Tabs defaultValue="tasks" className="h-full flex flex-col">
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="px-4 pt-4"
-            >
+            <div className="px-4 pt-4">
               <TabsList>
                 <TabsTrigger value="tasks" className="gap-1.5">
                   <FileText className="h-4 w-4" />
@@ -320,15 +281,12 @@ export default function SubjectPage() {
                   Notes
                 </TabsTrigger>
               </TabsList>
-            </motion.div>
+            </div>
 
             {/* Tasks Tab */}
             <TabsContent value="tasks" className="flex-1 overflow-auto p-4 space-y-6">
               {/* Add Task */}
-              <motion.form
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 }}
+              <form
                 onSubmit={handleAddTask}
                 className="flex gap-2"
               >
@@ -347,12 +305,7 @@ export default function SubjectPage() {
                   className="h-11"
                 >
                   {isSubmitting ? (
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                    >
-                      <Sparkles className="h-4 w-4" />
-                    </motion.div>
+                    <Sparkles className="h-4 w-4 animate-spin" />
                   ) : (
                     <>
                       <Plus className="h-4 w-4 mr-1" />
@@ -360,19 +313,11 @@ export default function SubjectPage() {
                     </>
                   )}
                 </Button>
-              </motion.form>
+              </form>
 
               {/* To Do */}
-              <motion.div
-                className="space-y-3"
-                variants={containerVariants}
-                initial="hidden"
-                animate="show"
-              >
-                <motion.div
-                  variants={itemVariants}
-                  className="flex items-center gap-2"
-                >
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
                   <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
                     <FileText className="h-4 w-4 text-blue-500" />
                   </div>
@@ -380,118 +325,76 @@ export default function SubjectPage() {
                   <Badge variant="secondary" className="bg-blue-500/10 text-blue-600">
                     {todoTasks.length}
                   </Badge>
-                </motion.div>
+                </div>
 
                 {todoTasks.length === 0 ? (
-                  <motion.div variants={itemVariants}>
-                    <Card className="border-2 border-dashed p-6">
-                      <EmptyState
-                        type="folder"
-                        title="No tasks yet"
-                        description="Add your first task above to get started."
-                        className="py-4"
-                      />
-                    </Card>
-                  </motion.div>
+                  <Card className="border-2 border-dashed p-6">
+                    <EmptyState
+                      type="folder"
+                      title="No tasks yet"
+                      description="Add your first task above to get started."
+                      className="py-4"
+                    />
+                  </Card>
                 ) : (
-                  <motion.div className="space-y-2" variants={containerVariants}>
-                    <AnimatePresence mode="sync">
-                      {todoTasks.map((task) => (
-                        <motion.div key={task.id} variants={itemVariants} layout>
-                          <TaskCard task={task} theme={subject.theme} labels={task.labels} />
-                        </motion.div>
-                      ))}
-                    </AnimatePresence>
-                  </motion.div>
+                  <div className="space-y-2">
+                    {todoTasks.map((task) => (
+                      <div key={task.id}>
+                        <TaskCard task={task} theme={subject.theme} labels={task.labels} />
+                      </div>
+                    ))}
+                  </div>
                 )}
-              </motion.div>
+              </div>
 
               {/* Waiting For */}
-              <AnimatePresence>
-                {waitingTasks.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    className="space-y-3"
-                  >
-                    <div className="flex items-center gap-2">
-                      <motion.div
-                        className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center"
-                        animate={{ scale: [1, 1.05, 1] }}
-                        transition={{ duration: 2, repeat: Infinity }}
-                      >
-                        <Hourglass className="h-4 w-4 text-amber-500" />
-                      </motion.div>
-                      <h2 className="font-semibold text-amber-600">Waiting For</h2>
-                      <Badge variant="secondary" className="bg-amber-500/10 text-amber-600">
-                        {waitingTasks.length}
-                      </Badge>
+              {waitingTasks.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                      <Hourglass className="h-4 w-4 text-amber-500" />
                     </div>
-                    <div className="space-y-2">
-                      <AnimatePresence mode="sync">
-                        {waitingTasks.map((task) => (
-                          <motion.div
-                            key={task.id}
-                            layout
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 20 }}
-                          >
-                            <TaskCard task={task} theme={subject.theme} labels={task.labels} />
-                          </motion.div>
-                        ))}
-                      </AnimatePresence>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                    <h2 className="font-semibold text-amber-600">Waiting For</h2>
+                    <Badge variant="secondary" className="bg-amber-500/10 text-amber-600">
+                      {waitingTasks.length}
+                    </Badge>
+                  </div>
+                  <div className="space-y-2">
+                    {waitingTasks.map((task) => (
+                      <div key={task.id}>
+                        <TaskCard task={task} theme={subject.theme} labels={task.labels} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Done */}
-              <AnimatePresence>
-                {doneTasks.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="space-y-3"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-lg bg-green-500/10 flex items-center justify-center">
-                        <CheckCircle2 className="h-4 w-4 text-green-500" />
-                      </div>
-                      <h2 className="font-semibold text-muted-foreground">Completed</h2>
-                      <Badge variant="secondary">
-                        {doneTasks.length}
-                      </Badge>
+              {doneTasks.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-lg bg-green-500/10 flex items-center justify-center">
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
                     </div>
-                    <motion.div
-                      className="space-y-2"
-                      variants={containerVariants}
-                      initial="hidden"
-                      animate="show"
-                    >
-                      {doneTasks.slice(0, 5).map((task, index) => (
-                        <motion.div
-                          key={task.id}
-                          variants={itemVariants}
-                          transition={{ delay: index * 0.03 }}
-                        >
-                          <TaskCard task={task} theme={subject.theme} labels={task.labels} compact />
-                        </motion.div>
-                      ))}
-                      {doneTasks.length > 5 && (
-                        <motion.p
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="text-sm text-muted-foreground text-center py-2"
-                        >
-                          + {doneTasks.length - 5} more completed tasks
-                        </motion.p>
-                      )}
-                    </motion.div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                    <h2 className="font-semibold text-muted-foreground">Completed</h2>
+                    <Badge variant="secondary">
+                      {doneTasks.length}
+                    </Badge>
+                  </div>
+                  <div className="space-y-2">
+                    {doneTasks.slice(0, 5).map((task) => (
+                      <div key={task.id}>
+                        <TaskCard task={task} theme={subject.theme} labels={task.labels} compact />
+                      </div>
+                    ))}
+                    {doneTasks.length > 5 && (
+                      <p className="text-sm text-muted-foreground text-center py-2">
+                        + {doneTasks.length - 5} more completed tasks
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Bottom padding */}
               <div className="h-20 md:h-8" />
@@ -499,32 +402,17 @@ export default function SubjectPage() {
 
             {/* Notes Tab (Scratchpad) */}
             <TabsContent value="notes" className="flex-1 overflow-auto p-4">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="space-y-3"
-              >
+              <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <motion.div
-                    className="h-8 w-8 rounded-lg bg-purple-500/10 flex items-center justify-center"
-                    whileHover={{ scale: 1.05, rotate: 5 }}
-                  >
+                  <div className="h-8 w-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
                     <Sparkles className="h-4 w-4 text-purple-500" />
-                  </motion.div>
+                  </div>
                   <h2 className="font-semibold">Scratchpad</h2>
-                  <AnimatePresence>
-                    {isSaving && (
-                      <motion.span
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        className="text-xs text-muted-foreground"
-                      >
-                        Saving...
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
+                  {isSaving && (
+                    <span className="text-xs text-muted-foreground">
+                      Saving...
+                    </span>
+                  )}
                 </div>
                 <MarkdownEditor
                   value={scratchpad}
@@ -533,20 +421,15 @@ export default function SubjectPage() {
                   minHeight="400px"
                   isSaving={isSaving}
                 />
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.3 }}
-                  className="text-xs text-muted-foreground"
-                >
+                <p className="text-xs text-muted-foreground">
                   Changes are saved automatically. Use this for digicodes, contact
                   info, or quick notes.
-                </motion.p>
-              </motion.div>
+                </p>
+              </div>
             </TabsContent>
           </Tabs>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

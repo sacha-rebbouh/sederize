@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   format,
   startOfMonth,
@@ -59,24 +58,10 @@ const WeekView = dynamic(() => import('@/components/calendar/week-view').then(m 
 
 type CalendarViewType = 'day' | '3days' | 'week' | 'month';
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.02 }
-  }
-};
-
-const dayVariants = {
-  hidden: { opacity: 0, scale: 0.9 },
-  show: { opacity: 1, scale: 1 }
-};
-
 export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [direction, setDirection] = useState(0);
   const [filter, setFilter] = useState<FilterState>({ categoryIds: [], themeIds: [], subjectIds: [] });
 
   // Persist calendar view type in localStorage
@@ -168,7 +153,6 @@ export default function CalendarPage() {
   };
 
   const goToPrevious = () => {
-    setDirection(-1);
     switch (viewType) {
       case 'day':
         setCurrentDate(subDays(currentDate, 1));
@@ -186,7 +170,6 @@ export default function CalendarPage() {
   };
 
   const goToNext = () => {
-    setDirection(1);
     switch (viewType) {
       case 'day':
         setCurrentDate(addDays(currentDate, 1));
@@ -204,7 +187,6 @@ export default function CalendarPage() {
   };
 
   const goToToday = () => {
-    setDirection(0);
     setCurrentDate(new Date());
   };
 
@@ -226,26 +208,15 @@ export default function CalendarPage() {
   }, [viewType, currentDate]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="max-w-7xl mx-auto p-4 md:p-6 space-y-6"
-    >
+    <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="space-y-4"
-      >
+      <div className="space-y-4">
         {/* Title Row */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <motion.div
-              className="h-10 w-10 rounded-xl bg-purple-500/10 flex items-center justify-center"
-              whileHover={{ scale: 1.05, rotate: 5 }}
-            >
+            <div className="h-10 w-10 rounded-xl bg-purple-500/10 flex items-center justify-center transition-transform hover:scale-105">
               <CalendarDays className="h-5 w-5 text-purple-500" />
-            </motion.div>
+            </div>
             <div>
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Calendar</h1>
               <p className="text-sm text-muted-foreground">
@@ -284,18 +255,9 @@ export default function CalendarPage() {
             <ChevronLeft className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-3">
-            <AnimatePresence mode="wait">
-              <motion.span
-                key={headerLabel}
-                initial={{ opacity: 0, x: direction * 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: direction * -20 }}
-                transition={{ duration: 0.2 }}
-                className="text-lg font-semibold"
-              >
-                {headerLabel}
-              </motion.span>
-            </AnimatePresence>
+            <span className="text-lg font-semibold">
+              {headerLabel}
+            </span>
             <Button variant="outline" size="sm" onClick={goToToday}>
               Aujourd&apos;hui
             </Button>
@@ -304,14 +266,10 @@ export default function CalendarPage() {
             <ChevronRight className="h-5 w-5" />
           </Button>
         </div>
-      </motion.div>
+      </div>
 
       {/* Calendar Views */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-      >
+      <div>
         {isLoading ? (
           <Card className="p-4">
             <div className="grid grid-cols-7 gap-2">
@@ -337,155 +295,115 @@ export default function CalendarPage() {
           <Card className="overflow-hidden shadow-sm">
             {/* Day Headers */}
             <div className="grid grid-cols-7 border-b bg-muted/50">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
-                <motion.div
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                <div
                   key={day}
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.03 }}
                   className="p-3 text-center text-sm font-medium text-muted-foreground"
                 >
                   {day}
-                </motion.div>
+                </div>
               ))}
             </div>
 
             {/* Calendar Days - Month View */}
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={format(currentDate, 'yyyy-MM')}
-                className="grid grid-cols-7"
-                variants={containerVariants}
-                initial="hidden"
-                animate="show"
-              >
-                {days.map((day, index) => {
-                  const dayTasks = getTasksForDate(day);
-                  const isCurrentMonth = isSameMonth(day, currentDate);
-                  const isSelectedDay = selectedDate && isSameDay(day, selectedDate);
-                  const hasTasks = dayTasks.length > 0;
+            <div className="grid grid-cols-7">
+              {days.map((day, index) => {
+                const dayTasks = getTasksForDate(day);
+                const isCurrentMonth = isSameMonth(day, currentDate);
+                const isSelectedDay = selectedDate && isSameDay(day, selectedDate);
+                const hasTasks = dayTasks.length > 0;
 
-                  // Group tasks by theme color for dots
-                  const themeColors = Array.from(new Set(
-                    dayTasks
-                      .filter((t) => t.theme?.color_hex)
-                      .map((t) => t.theme!.color_hex)
-                  )).slice(0, 3);
+                // Group tasks by theme color for dots
+                const themeColors = Array.from(new Set(
+                  dayTasks
+                    .filter((t) => t.theme?.color_hex)
+                    .map((t) => t.theme!.color_hex)
+                )).slice(0, 3);
 
-                  return (
-                    <motion.button
-                      key={index}
-                      variants={dayVariants}
-                      onClick={() => handleDateClick(day)}
-                      disabled={!hasTasks}
-                      whileHover={hasTasks ? { scale: 1.02, backgroundColor: 'rgba(0,0,0,0.02)' } : undefined}
-                      whileTap={hasTasks ? { scale: 0.98 } : undefined}
-                      className={cn(
-                        'relative min-h-[80px] md:min-h-[100px] p-2 border-b border-r text-left transition-colors',
-                        !isCurrentMonth && 'bg-muted/30 text-muted-foreground',
-                        isSelectedDay && 'bg-primary/10',
-                        !hasTasks && 'cursor-default',
-                        hasTasks && 'hover:bg-accent/50'
+                return (
+                  <button
+                    key={index}
+                    onClick={() => handleDateClick(day)}
+                    disabled={!hasTasks}
+                    className={cn(
+                      'relative min-h-[80px] md:min-h-[100px] p-2 border-b border-r text-left transition-colors',
+                      !isCurrentMonth && 'bg-muted/30 text-muted-foreground',
+                      isSelectedDay && 'bg-primary/10',
+                      !hasTasks && 'cursor-default',
+                      hasTasks && 'hover:bg-accent/50'
+                    )}
+                  >
+                    <div className="flex items-center gap-1">
+                      <span
+                        className={cn(
+                          'inline-flex h-7 w-7 items-center justify-center rounded-full text-sm transition-transform',
+                          isToday(day) && 'bg-primary text-primary-foreground font-bold hover:scale-110'
+                        )}
+                      >
+                        {format(day, 'd')}
+                      </span>
+                      {/* Purple dot indicator for days with tasks */}
+                      {hasTasks && (
+                        <div className="h-2 w-2 rounded-full bg-purple-500" />
                       )}
-                    >
-                      <div className="flex items-center gap-1">
-                        <motion.span
-                          className={cn(
-                            'inline-flex h-7 w-7 items-center justify-center rounded-full text-sm',
-                            isToday(day) && 'bg-primary text-primary-foreground font-bold'
+                    </div>
+
+                    {/* Task Dots */}
+                    {hasTasks && (
+                      <div className="mt-1 space-y-1">
+                        {/* Show up to 2 task previews on larger screens */}
+                        <div className="hidden md:block space-y-0.5">
+                          {dayTasks.slice(0, 2).map((task) => (
+                            <div
+                              key={task.id}
+                              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs truncate"
+                              style={{
+                                backgroundColor: (task.theme?.color_hex || '#6366f1') + '20',
+                              }}
+                            >
+                              <div
+                                className="h-1.5 w-1.5 rounded-full flex-shrink-0"
+                                style={{
+                                  backgroundColor: task.theme?.color_hex || '#6366f1',
+                                }}
+                              />
+                              <span className="truncate">{task.title}</span>
+                            </div>
+                          ))}
+                          {dayTasks.length > 2 && (
+                            <span className="text-xs text-muted-foreground px-1">
+                              +{dayTasks.length - 2} more
+                            </span>
                           )}
-                          whileHover={isToday(day) ? { scale: 1.1 } : undefined}
-                        >
-                          {format(day, 'd')}
-                        </motion.span>
-                        {/* Purple dot indicator for days with tasks */}
-                        {hasTasks && (
-                          <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            className="h-2 w-2 rounded-full bg-purple-500"
-                          />
-                        )}
+                        </div>
+
+                        {/* Mobile: Just show colored dots */}
+                        <div className="flex gap-1 md:hidden flex-wrap">
+                          {themeColors.map((color, i) => (
+                            <div
+                              key={i}
+                              className="h-2 w-2 rounded-full"
+                              style={{ backgroundColor: color }}
+                            />
+                          ))}
+                          {dayTasks.length > 3 && (
+                            <span className="text-[10px] text-muted-foreground">
+                              +{dayTasks.length - 3}
+                            </span>
+                          )}
+                        </div>
                       </div>
-
-                      {/* Task Dots */}
-                      <AnimatePresence>
-                        {hasTasks && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 5 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="mt-1 space-y-1"
-                          >
-                            {/* Show up to 2 task previews on larger screens */}
-                            <div className="hidden md:block space-y-0.5">
-                              {dayTasks.slice(0, 2).map((task, taskIndex) => (
-                                <motion.div
-                                  key={task.id}
-                                  initial={{ opacity: 0, x: -10 }}
-                                  animate={{ opacity: 1, x: 0 }}
-                                  transition={{ delay: taskIndex * 0.05 }}
-                                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs truncate"
-                                  style={{
-                                    backgroundColor: (task.theme?.color_hex || '#6366f1') + '20',
-                                  }}
-                                >
-                                  <div
-                                    className="h-1.5 w-1.5 rounded-full flex-shrink-0"
-                                    style={{
-                                      backgroundColor: task.theme?.color_hex || '#6366f1',
-                                    }}
-                                  />
-                                  <span className="truncate">{task.title}</span>
-                                </motion.div>
-                              ))}
-                              {dayTasks.length > 2 && (
-                                <motion.span
-                                  initial={{ opacity: 0 }}
-                                  animate={{ opacity: 1 }}
-                                  className="text-xs text-muted-foreground px-1"
-                                >
-                                  +{dayTasks.length - 2} more
-                                </motion.span>
-                              )}
-                            </div>
-
-                            {/* Mobile: Just show colored dots */}
-                            <div className="flex gap-1 md:hidden flex-wrap">
-                              {themeColors.map((color, i) => (
-                                <motion.div
-                                  key={i}
-                                  initial={{ scale: 0 }}
-                                  animate={{ scale: 1 }}
-                                  transition={{ delay: i * 0.05 }}
-                                  className="h-2 w-2 rounded-full"
-                                  style={{ backgroundColor: color }}
-                                />
-                              ))}
-                              {dayTasks.length > 3 && (
-                                <span className="text-[10px] text-muted-foreground">
-                                  +{dayTasks.length - 3}
-                                </span>
-                              )}
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </motion.button>
-                  );
-                })}
-              </motion.div>
-            </AnimatePresence>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </Card>
         )}
-      </motion.div>
+      </div>
 
       {/* Legend */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.3 }}
-        className="flex items-center justify-center gap-4 text-xs text-muted-foreground"
-      >
+      <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
         <div className="flex items-center gap-1.5">
           <div className="h-3 w-3 rounded-full bg-primary" />
           <span>Today</span>
@@ -494,21 +412,16 @@ export default function CalendarPage() {
           <div className="h-2 w-2 rounded-full bg-purple-500" />
           <span>Has tasks</span>
         </div>
-      </motion.div>
+      </div>
 
       {/* Day Detail Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <motion.div
-                className="h-8 w-8 rounded-lg bg-purple-500/10 flex items-center justify-center"
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring' }}
-              >
+              <div className="h-8 w-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
                 <Sparkles className="h-4 w-4 text-purple-500" />
-              </motion.div>
+              </div>
               {selectedDate && format(selectedDate, 'EEEE, MMMM d, yyyy')}
             </DialogTitle>
           </DialogHeader>
@@ -522,25 +435,18 @@ export default function CalendarPage() {
                   description="No tasks scheduled for this day."
                 />
               ) : (
-                <AnimatePresence mode="sync">
-                  {selectedDate &&
-                    getTasksForDate(selectedDate).map((task, index) => (
-                      <motion.div
-                        key={task.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                      >
-                        <TaskCard
-                          task={task}
-                          theme={task.theme}
-                          labels={task.labels}
-                          showSubject
-                          subjectTitle={task.subject?.title}
-                        />
-                      </motion.div>
-                    ))}
-                </AnimatePresence>
+                selectedDate &&
+                getTasksForDate(selectedDate).map((task) => (
+                  <div key={task.id}>
+                    <TaskCard
+                      task={task}
+                      theme={task.theme}
+                      labels={task.labels}
+                      showSubject
+                      subjectTitle={task.subject?.title}
+                    />
+                  </div>
+                ))
               )}
             </div>
           </ScrollArea>
@@ -549,6 +455,6 @@ export default function CalendarPage() {
 
       {/* Bottom padding for FAB */}
       <div className="h-20 md:h-8" />
-    </motion.div>
+    </div>
   );
 }

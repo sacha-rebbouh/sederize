@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -108,11 +107,7 @@ export default function ArchivesPage() {
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-6 pt-6 md:pt-8 space-y-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="space-y-1"
-      >
+      <div className="space-y-1">
         <div className="flex items-center gap-2">
           <Archive className="h-6 w-6 text-muted-foreground" />
           <h1 className="text-2xl font-bold">Archives</h1>
@@ -120,27 +115,17 @@ export default function ArchivesPage() {
         <p className="text-muted-foreground">
           Retrouvez vos tâches complétées
         </p>
-      </motion.div>
+      </div>
 
       {/* Month Navigation */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="flex items-center justify-between gap-4"
-      >
+      <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" onClick={goToPreviousMonth}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <motion.span
-            key={selectedMonth.toISOString()}
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-lg font-medium capitalize min-w-[160px] text-center"
-          >
+          <span className="text-lg font-medium capitalize min-w-[160px] text-center">
             {format(selectedMonth, 'MMMM yyyy', { locale: fr })}
-          </motion.span>
+          </span>
           <Button
             variant="ghost"
             size="icon"
@@ -161,35 +146,29 @@ export default function ArchivesPage() {
             className="pl-9"
           />
         </div>
-      </motion.div>
+      </div>
 
       {/* Stats */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
-      >
-        <Card>
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{completedTasks.length}</p>
-                <p className="text-xs text-muted-foreground">
-                  Tâches complétées ce mois
-                </p>
-              </div>
+      <Card>
+        <CardContent className="p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
             </div>
-            {searchQuery && (
-              <Badge variant="secondary">
-                {filteredTasks.length} résultat{filteredTasks.length !== 1 && 's'}
-              </Badge>
-            )}
-          </CardContent>
-        </Card>
-      </motion.div>
+            <div>
+              <p className="text-2xl font-bold">{completedTasks.length}</p>
+              <p className="text-xs text-muted-foreground">
+                Tâches complétées ce mois
+              </p>
+            </div>
+          </div>
+          {searchQuery && (
+            <Badge variant="secondary">
+              {filteredTasks.length} résultat{filteredTasks.length !== 1 && 's'}
+            </Badge>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Task List */}
       <ScrollArea className="h-[calc(100vh-380px)]">
@@ -202,61 +181,48 @@ export default function ArchivesPage() {
             ))}
           </div>
         ) : groupedTasks.length > 0 ? (
-          <AnimatePresence mode="sync">
-            <div className="space-y-6">
-              {groupedTasks.map((group, groupIndex) => (
-                <motion.div
-                  key={group.date}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: groupIndex * 0.05 }}
-                  className="space-y-2"
-                >
-                  {/* Date Header */}
-                  <div className="flex items-center gap-2 px-1">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium text-muted-foreground capitalize">
-                      {group.dateLabel}
-                    </span>
-                    <Badge variant="secondary" className="text-xs">
-                      {group.tasks.length}
-                    </Badge>
-                  </div>
+          <div className="space-y-6">
+            {groupedTasks.map((group) => (
+              <div key={group.date} className="space-y-2">
+                {/* Date Header */}
+                <div className="flex items-center gap-2 px-1">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium text-muted-foreground capitalize">
+                    {group.dateLabel}
+                  </span>
+                  <Badge variant="secondary" className="text-xs">
+                    {group.tasks.length}
+                  </Badge>
+                </div>
 
-                  {/* Tasks */}
-                  <div className="space-y-2">
-                    {group.tasks.map((task) => (
-                      <TaskCard
-                        key={task.id}
-                        task={task}
-                        theme={task.theme}
-                        labels={task.labels}
-                        showSubject
-                        subjectTitle={task.subject?.title}
-                      />
-                    ))}
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </AnimatePresence>
+                {/* Tasks */}
+                <div className="space-y-2">
+                  {group.tasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      theme={task.theme}
+                      labels={task.labels}
+                      showSubject
+                      subjectTitle={task.subject?.title}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <Card className="border-2 border-dashed">
-              <EmptyState
-                type="success"
-                title={searchQuery ? 'Aucun résultat' : 'Aucune archive'}
-                description={
-                  searchQuery
-                    ? 'Aucune tâche ne correspond à votre recherche.'
-                    : 'Aucune tâche complétée ce mois-ci.'
-                }
-              />
-            </Card>
-          </motion.div>
+          <Card className="border-2 border-dashed">
+            <EmptyState
+              type="success"
+              title={searchQuery ? 'Aucun résultat' : 'Aucune archive'}
+              description={
+                searchQuery
+                  ? 'Aucune tâche ne correspond à votre recherche.'
+                  : 'Aucune tâche complétée ce mois-ci.'
+              }
+            />
+          </Card>
         )}
       </ScrollArea>
 

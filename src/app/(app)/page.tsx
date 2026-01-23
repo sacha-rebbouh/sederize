@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useEffect, useState, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { format, isBefore, startOfDay, addDays, subDays, isToday, isTomorrow, isYesterday } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -73,19 +72,6 @@ function sortTasks(tasks: TaskWithRelations[]): TaskWithRelations[] {
     return (a.order_index ?? 0) - (b.order_index ?? 0);
   });
 }
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.03, duration: 0.2 }
-  }
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 10 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.15 } }
-};
 
 export default function DailyBriefPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -286,28 +272,15 @@ export default function DailyBriefPage() {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="max-w-3xl mx-auto p-4 md:p-6 space-y-6"
-    >
+    <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-6">
       {/* Header - Centered */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center space-y-2"
-      >
+      <div className="text-center space-y-2">
         <div className="relative flex items-center justify-center">
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Brief du jour</h1>
           {totalTasks === 0 && isToday(selectedDate) && (
-            <motion.span
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: 'spring', delay: 0.3 }}
-              className="absolute -right-8 md:-right-9"
-            >
+            <span className="absolute -right-8 md:-right-9">
               <Sparkles className="h-6 w-6 text-amber-500" />
-            </motion.span>
+            </span>
           )}
         </div>
 
@@ -345,15 +318,10 @@ export default function DailyBriefPage() {
             </Button>
           )}
         </div>
-      </motion.div>
+      </div>
 
       {/* Filters Row - Scrollable on mobile */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="relative"
-      >
+      <div className="relative">
         <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
           <div className="flex items-center gap-2 min-w-max md:justify-center">
           <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -410,34 +378,21 @@ export default function DailyBriefPage() {
           </Select>
 
           {/* Clear Filters */}
-          <AnimatePresence>
-            {hasActiveFilters && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-              >
-                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-10 gap-1 text-xs flex-shrink-0">
-                  <X className="h-3 w-3" />
-                  Effacer
-                </Button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="h-10 gap-1 text-xs flex-shrink-0">
+              <X className="h-3 w-3" />
+              Effacer
+            </Button>
+          )}
           </div>
         </div>
         {/* Fade gradient to hint more content - mobile only */}
         <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none md:hidden" />
-      </motion.div>
+      </div>
 
       {/* Stats Row - Clickable Filters */}
-      <motion.div
-        className="grid grid-cols-3 gap-2 md:gap-3"
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-      >
-        <motion.div variants={itemVariants} className="h-full">
+      <div className="grid grid-cols-3 gap-2 md:gap-3">
+        <div className="h-full">
           <Card
             onClick={() => setActiveFilter(activeFilter === 'todo' ? 'all' : 'todo')}
             className={cn(
@@ -455,9 +410,9 @@ export default function DailyBriefPage() {
               </div>
             </div>
           </Card>
-        </motion.div>
+        </div>
 
-        <motion.div variants={itemVariants} className="h-full">
+        <div className="h-full">
           <Card
             onClick={() => setActiveFilter(activeFilter === 'waiting' ? 'all' : 'waiting')}
             className={cn(
@@ -475,9 +430,9 @@ export default function DailyBriefPage() {
               </div>
             </div>
           </Card>
-        </motion.div>
+        </div>
 
-        <motion.div variants={itemVariants} className="h-full">
+        <div className="h-full">
           <Card
             onClick={() => setActiveFilter(activeFilter === 'inactive' ? 'all' : 'inactive')}
             className={cn(
@@ -495,102 +450,68 @@ export default function DailyBriefPage() {
               </div>
             </div>
           </Card>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
 
       {/* Active Filter Indicator */}
-      <AnimatePresence>
-        {activeFilter !== 'all' && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="flex items-center gap-2"
-          >
-            <Badge variant="secondary" className="gap-1">
-              Filtre : {activeFilter === 'todo' ? 'A faire' : activeFilter === 'waiting' ? 'En attente' : 'Sujets inactifs'}
-              <button
-                onClick={() => setActiveFilter('all')}
-                className="ml-1 hover:text-destructive"
-              >
-                &times;
-              </button>
-            </Badge>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {activeFilter !== 'all' && (
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="gap-1">
+            Filtre : {activeFilter === 'todo' ? 'A faire' : activeFilter === 'waiting' ? 'En attente' : 'Sujets inactifs'}
+            <button
+              onClick={() => setActiveFilter('all')}
+              className="ml-1 hover:text-destructive"
+            >
+              &times;
+            </button>
+          </Badge>
+        </div>
+      )}
 
       {/* OVERDUE Section - Show when filter is 'all' or 'todo' */}
-      <AnimatePresence>
-        {overdueCount > 0 && (activeFilter === 'all' || activeFilter === 'todo') && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-          >
-            <Card className="border-destructive/50 bg-gradient-to-br from-destructive/5 to-transparent overflow-hidden">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2 text-destructive">
-                  <motion.div
-                    animate={{ scale: [1, 1.1, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  >
-                    <AlertCircle className="h-5 w-5" />
-                  </motion.div>
-                  En retard
-                  <Badge variant="destructive" className="ml-1">
-                    {overdueCount}
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <AnimatePresence mode="sync">
-                  {overdueTasks.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      theme={task.theme}
-                      labels={task.labels}
-                      showSubject
-                      subjectTitle={task.subject?.title}
-                    />
-                  ))}
-                </AnimatePresence>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {overdueCount > 0 && (activeFilter === 'all' || activeFilter === 'todo') && (
+        <Card className="border-destructive/50 bg-gradient-to-br from-destructive/5 to-transparent overflow-hidden">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              En retard
+              <Badge variant="destructive" className="ml-1">
+                {overdueCount}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {overdueTasks.map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                theme={task.theme}
+                labels={task.labels}
+                showSubject
+                subjectTitle={task.subject?.title}
+              />
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Empty State - Show when filter is 'all' or 'todo' and no tasks (only after loading and sync) */}
       {totalTasks === 0 && (activeFilter === 'all' || activeFilter === 'todo') && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Card className="border-2 border-dashed">
-            <EmptyState
-              type="success"
-              title="Tout est fait !"
-              description="Aucune tache pour aujourd'hui. Profitez de votre liberte ou planifiez a l'avance."
-            />
-          </Card>
-        </motion.div>
+        <Card className="border-2 border-dashed">
+          <EmptyState
+            type="success"
+            title="Tout est fait !"
+            description="Aucune tache pour aujourd'hui. Profitez de votre liberte ou planifiez a l'avance."
+          />
+        </Card>
       )}
 
       {/* Grouped Tasks by Category > Theme - Show when filter is 'all' or 'todo' */}
       {(activeFilter === 'all' || activeFilter === 'todo') && (
-        <motion.div
-          className="space-y-8"
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-        >
+        <div className="space-y-8">
           {groupedByCategory.map((categoryGroup) => (
-            <motion.div
+            <div
               key={categoryGroup.category?.id || 'uncategorized'}
-              variants={itemVariants}
               className="space-y-4"
             >
               {/* Category Header - Centered, prominent */}
@@ -618,10 +539,9 @@ export default function DailyBriefPage() {
                     <div className="flex items-center gap-2">
                       {themeGroup.theme ? (
                         <>
-                          <motion.div
+                          <div
                             className="h-3 w-3 rounded-sm"
                             style={{ backgroundColor: themeGroup.theme.color_hex }}
-                            whileHover={{ scale: 1.2 }}
                           />
                           <h3 className="text-sm font-semibold text-foreground/80">{themeGroup.theme.title}</h3>
                           <Badge variant="secondary" className="text-xs font-medium">
@@ -641,171 +561,138 @@ export default function DailyBriefPage() {
 
                     {/* Tasks */}
                     <div className="space-y-2">
-                      <AnimatePresence mode="sync">
-                        {themeGroup.tasks.map((task) => {
-                          // Only show subject name as badge (theme/category already visible in grouping)
-                          const assignmentLabel = task.subject?.title || null;
-                          return (
-                          <div key={task.id} className="group relative">
-                            <TaskCard
-                              task={task}
-                              theme={task.theme}
-                              labels={task.labels}
-                              showSubject
-                              subjectTitle={assignmentLabel}
-                            />
-                            {/* Assign button for unassigned tasks */}
-                            {!themeGroup.theme && (
-                              <div className="absolute right-24 top-4 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 bg-primary/10 hover:bg-primary/20 rounded-lg"
-                                  onClick={() => handleOpenAssignDialog(task)}
-                                  title="Assigner à un sujet"
-                                >
-                                  <FolderInput className="h-4 w-4 text-primary" />
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                        })}
-                      </AnimatePresence>
+                      {themeGroup.tasks.map((task) => {
+                        // Only show subject name as badge (theme/category already visible in grouping)
+                        const assignmentLabel = task.subject?.title || null;
+                        return (
+                        <div key={task.id} className="group relative">
+                          <TaskCard
+                            task={task}
+                            theme={task.theme}
+                            labels={task.labels}
+                            showSubject
+                            subjectTitle={assignmentLabel}
+                          />
+                          {/* Assign button for unassigned tasks */}
+                          {!themeGroup.theme && (
+                            <div className="absolute right-24 top-4 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 bg-primary/10 hover:bg-primary/20 rounded-lg"
+                                onClick={() => handleOpenAssignDialog(task)}
+                                title="Assigner à un sujet"
+                              >
+                                <FolderInput className="h-4 w-4 text-primary" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                      })}
                     </div>
                   </div>
                 ))}
               </div>
-            </motion.div>
+            </div>
           ))}
-        </motion.div>
+        </div>
       )}
 
       {/* Waiting For Section - Show when filter is 'all' or 'waiting' */}
-      <AnimatePresence>
-        {waitingFor && waitingFor.length > 0 && (activeFilter === 'all' || activeFilter === 'waiting') && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-          >
-            {activeFilter === 'all' && <Separator className="my-6" />}
+      {waitingFor && waitingFor.length > 0 && (activeFilter === 'all' || activeFilter === 'waiting') && (
+        <div>
+          {activeFilter === 'all' && <Separator className="my-6" />}
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Hourglass className="h-4 w-4 text-amber-500" />
-                  <h2 className="font-semibold">En Attente</h2>
-                  <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                    {waitingFor.length}
-                  </Badge>
-                </div>
-                <Link href="/pending">
-                  <Button variant="ghost" size="sm" className="text-xs text-muted-foreground">
-                    Voir tout →
-                  </Button>
-                </Link>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Hourglass className="h-4 w-4 text-amber-500" />
+                <h2 className="font-semibold">En Attente</h2>
+                <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                  {waitingFor.length}
+                </Badge>
               </div>
-
-              <div className="space-y-2">
-                <AnimatePresence mode="sync">
-                  {waitingFor.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      theme={task.theme}
-                      labels={task.labels}
-                      showSubject
-                      subjectTitle={task.subject?.title}
-                    />
-                  ))}
-                </AnimatePresence>
-              </div>
+              <Link href="/pending">
+                <Button variant="ghost" size="sm" className="text-xs text-muted-foreground">
+                  Voir tout →
+                </Button>
+              </Link>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+            <div className="space-y-2">
+              {waitingFor.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  theme={task.theme}
+                  labels={task.labels}
+                  showSubject
+                  subjectTitle={task.subject?.title}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Empty state for Waiting filter */}
       {activeFilter === 'waiting' && (!waitingFor || waitingFor.length === 0) && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <Card className="border-2 border-dashed">
-            <EmptyState
-              type="success"
-              title="Rien en attente"
-              description="Aucune tâche en attente de réponse."
-            />
-          </Card>
-        </motion.div>
+        <Card className="border-2 border-dashed">
+          <EmptyState
+            type="success"
+            title="Rien en attente"
+            description="Aucune tâche en attente de réponse."
+          />
+        </Card>
       )}
 
       {/* Inactive Subjects Alert - Show when filter is 'all' or 'inactive' */}
-      <AnimatePresence>
-        {zombies && zombies.length > 0 && (activeFilter === 'all' || activeFilter === 'inactive') && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-          >
-            {activeFilter === 'all' && <Separator className="my-6" />}
+      {zombies && zombies.length > 0 && (activeFilter === 'all' || activeFilter === 'inactive') && (
+        <div>
+          {activeFilter === 'all' && <Separator className="my-6" />}
 
-            <Card className="border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-transparent">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-500" />
-                  Sujets inactifs
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Ces sujets n&apos;ont pas eu d&apos;activité depuis plus de 10 jours.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {zombies.map((subject, i) => (
-                    <motion.div
-                      key={subject.id}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: i * 0.05 }}
+          <Card className="border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-transparent">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                Sujets inactifs
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-3">
+                Ces sujets n&apos;ont pas eu d&apos;activité depuis plus de 10 jours.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {zombies.map((subject) => (
+                  <Link key={subject.id} href={`/subject/${subject.id}`}>
+                    <Badge
+                      variant="outline"
+                      className="cursor-pointer hover:bg-accent hover:scale-105 transition-all"
                     >
-                      <Link href={`/subject/${subject.id}`}>
-                        <Badge
-                          variant="outline"
-                          className="cursor-pointer hover:bg-accent hover:scale-105 transition-all"
-                        >
-                          <div
-                            className="h-2 w-2 rounded-full mr-1.5"
-                            style={{ backgroundColor: subject.theme?.color_hex }}
-                          />
-                          {subject.title}
-                        </Badge>
-                      </Link>
-                    </motion.div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                      <div
+                        className="h-2 w-2 rounded-full mr-1.5"
+                        style={{ backgroundColor: subject.theme?.color_hex }}
+                      />
+                      {subject.title}
+                    </Badge>
+                  </Link>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Empty state for Inactive filter */}
       {activeFilter === 'inactive' && (!zombies || zombies.length === 0) && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <Card className="border-2 border-dashed">
-            <EmptyState
-              type="success"
-              title="Tout est actif"
-              description="Aucun sujet inactif depuis plus de 10 jours."
-            />
-          </Card>
-        </motion.div>
+        <Card className="border-2 border-dashed">
+          <EmptyState
+            type="success"
+            title="Tout est actif"
+            description="Aucun sujet inactif depuis plus de 10 jours."
+          />
+        </Card>
       )}
 
       {/* Bottom padding for FAB */}
@@ -822,6 +709,6 @@ export default function DailyBriefPage() {
           subjectId: selectedTask?.subject_id || null,
         }}
       />
-    </motion.div>
+    </div>
   );
 }
