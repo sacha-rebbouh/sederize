@@ -67,11 +67,11 @@ export function useTaskLabels(taskId: string) {
   const isPowerSyncReady = usePowerSyncReady();
 
   // PowerSync watched queries - join task_labels with labels
-  // task_labels needs runQueryOnce: false for real-time label assignment updates
+  // Changed to runQueryOnce: true for stability
   const taskLabelsResult = usePowerSyncWatchedQuery<TaskLabel>(
     'SELECT * FROM task_labels WHERE task_id = ?',
     [taskId],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   // labels list is static reference data

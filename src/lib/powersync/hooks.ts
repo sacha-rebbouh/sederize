@@ -41,9 +41,9 @@ export function useWatchedQuery<T>(
   sql: string,
   parameters: unknown[] = []
 ): WatchedQueryResult<T[]> {
-  // Use PowerSync's reactive query hook
+  // Use PowerSync's query hook - runQueryOnce: true for stability
   const result = usePowerSyncQuery<T>(sql, parameters, {
-    runQueryOnce: false, // Keep watching for changes
+    runQueryOnce: true,
   });
 
   return {
