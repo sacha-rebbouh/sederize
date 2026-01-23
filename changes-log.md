@@ -1,6 +1,6 @@
 # Changes Log - Sederize
 
-## 2026-01-23 12:15 - CRITICAL FIX: Centralized RelatedData to prevent query duplication
+## 2026-01-23 12:30 - CRITICAL FIX: Centralized RelatedData to prevent query duplication
 
 ### Fichiers modifiés
 - `src/providers/related-data-provider.tsx` (nouveau)
@@ -20,11 +20,23 @@ Chaque hook de tâche (`useDailyBriefTasks`, `useWaitingForTasks`, etc.) créait
 Sur Daily Brief seule : 2 hooks × 5 queries = 10 queries dupliquées
 + autres hooks = ~16 queries pour les mêmes données !
 
-### Solution : Contexte partagé
-Création de `RelatedDataProvider` :
+### Solution : Contexte partagé avec pattern deux-composants
+Création de `RelatedDataProvider` avec architecture sécurisée :
 - **5 queries uniques** pour toute l'application
 - Montées une seule fois au niveau root
 - Partagées via Context entre tous les hooks
+- **Pattern deux-composants** : `RelatedDataProvider` (vérifie isPowerSyncReady) → `RelatedDataProviderInner` (exécute les queries)
+
+### Pourquoi le pattern deux-composants ?
+```typescript
+// RelatedDataProvider vérifie d'abord si PowerSync est prêt
+if (!isPowerSyncReady) {
+  return <Context.Provider value={EMPTY_DATA}>{children}</Context.Provider>;
+}
+// Seulement si prêt, on rend le composant avec les queries
+return <RelatedDataProviderInner>{children}</RelatedDataProviderInner>;
+```
+Cela garantit que `usePowerSyncWatchedQuery` n'est appelé que quand `PowerSyncContext` existe.
 
 ### Avant/Après
 ```
@@ -35,9 +47,10 @@ AVANT:
 - Total en naviguant: 50+ queries actives
 
 APRÈS:
-- Application entière: 5 watched queries
+- Application entière: 5 watched queries (données relationnelles)
+- + queries spécifiques par page (tasks par date/filtre)
 - Navigation: réutilise les mêmes
-- Total constant: 5 queries
+- Total constant: ~10 queries max
 ```
 
 ### Impact attendu

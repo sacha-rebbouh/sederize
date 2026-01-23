@@ -28,6 +28,16 @@ interface RelatedData {
   isLoading: boolean;
 }
 
+// Empty data constant to avoid recreating objects
+const EMPTY_DATA: RelatedData = {
+  subjects: new Map(),
+  themes: new Map(),
+  categories: new Map(),
+  labels: new Map(),
+  taskLabels: [],
+  isLoading: true,
+};
+
 // ============================================
 // CONTEXT
 // ============================================
@@ -38,70 +48,84 @@ const RelatedDataContext = createContext<RelatedData | null>(null);
 // PROVIDER
 // ============================================
 
+/**
+ * RelatedDataProvider - Centralized data provider for shared PowerSync queries
+ *
+ * IMPORTANT: usePowerSyncWatchedQuery requires PowerSyncContext to be available.
+ * PowerSyncContext is only provided when db is initialized.
+ * We use a two-component pattern to conditionally render queries only when ready.
+ */
 export function RelatedDataProvider({ children }: { children: ReactNode }) {
   const isPowerSyncReady = usePowerSyncReady();
 
-  // Only run queries when PowerSync is ready
-  // These queries are shared across ALL components that need related data
+  // When PowerSync is not ready, provide empty data
+  // This avoids calling usePowerSyncWatchedQuery without PowerSyncContext
+  if (!isPowerSyncReady) {
+    return (
+      <RelatedDataContext.Provider value={EMPTY_DATA}>
+        {children}
+      </RelatedDataContext.Provider>
+    );
+  }
+
+  // When PowerSync IS ready, render the inner provider with actual queries
+  return (
+    <RelatedDataProviderInner>
+      {children}
+    </RelatedDataProviderInner>
+  );
+}
+
+/**
+ * Inner provider that only renders when PowerSync is ready
+ * This ensures usePowerSyncWatchedQuery has access to PowerSyncContext
+ */
+function RelatedDataProviderInner({ children }: { children: ReactNode }) {
+  // These queries are now safe to call - PowerSyncContext is guaranteed to exist
   const subjectsResult = usePowerSyncWatchedQuery<Subject>(
-    isPowerSyncReady ? 'SELECT * FROM subjects' : 'SELECT 1 WHERE 0',
+    'SELECT * FROM subjects',
     [],
     { runQueryOnce: false }
   );
 
   const themesResult = usePowerSyncWatchedQuery<Theme>(
-    isPowerSyncReady ? 'SELECT * FROM themes' : 'SELECT 1 WHERE 0',
+    'SELECT * FROM themes',
     [],
     { runQueryOnce: false }
   );
 
   const categoriesResult = usePowerSyncWatchedQuery<Category>(
-    isPowerSyncReady ? 'SELECT * FROM categories' : 'SELECT 1 WHERE 0',
+    'SELECT * FROM categories',
     [],
     { runQueryOnce: false }
   );
 
   const labelsResult = usePowerSyncWatchedQuery<Label>(
-    isPowerSyncReady ? 'SELECT * FROM labels' : 'SELECT 1 WHERE 0',
+    'SELECT * FROM labels',
     [],
     { runQueryOnce: false }
   );
 
   const taskLabelsResult = usePowerSyncWatchedQuery<TaskLabel>(
-    isPowerSyncReady ? 'SELECT task_id, label_id FROM task_labels' : 'SELECT 1 WHERE 0',
+    'SELECT task_id, label_id FROM task_labels',
     [],
     { runQueryOnce: false }
   );
 
   // Memoize the data to prevent unnecessary re-renders
-  const value = useMemo<RelatedData>(() => {
-    // If PowerSync is not ready, return empty data
-    if (!isPowerSyncReady) {
-      return {
-        subjects: new Map(),
-        themes: new Map(),
-        categories: new Map(),
-        labels: new Map(),
-        taskLabels: [],
-        isLoading: true,
-      };
-    }
-
-    return {
-      subjects: new Map((subjectsResult.data ?? []).map((s) => [s.id, s])),
-      themes: new Map((themesResult.data ?? []).map((t) => [t.id, t])),
-      categories: new Map((categoriesResult.data ?? []).map((c) => [c.id, c])),
-      labels: new Map((labelsResult.data ?? []).map((l) => [l.id, l])),
-      taskLabels: (taskLabelsResult.data ?? []) as TaskLabel[],
-      isLoading:
-        subjectsResult.isLoading ||
-        themesResult.isLoading ||
-        categoriesResult.isLoading ||
-        labelsResult.isLoading ||
-        taskLabelsResult.isLoading,
-    };
-  }, [
-    isPowerSyncReady,
+  const value = useMemo<RelatedData>(() => ({
+    subjects: new Map((subjectsResult.data ?? []).map((s) => [s.id, s])),
+    themes: new Map((themesResult.data ?? []).map((t) => [t.id, t])),
+    categories: new Map((categoriesResult.data ?? []).map((c) => [c.id, c])),
+    labels: new Map((labelsResult.data ?? []).map((l) => [l.id, l])),
+    taskLabels: (taskLabelsResult.data ?? []) as TaskLabel[],
+    isLoading:
+      subjectsResult.isLoading ||
+      themesResult.isLoading ||
+      categoriesResult.isLoading ||
+      labelsResult.isLoading ||
+      taskLabelsResult.isLoading,
+  }), [
     subjectsResult.data,
     themesResult.data,
     categoriesResult.data,
