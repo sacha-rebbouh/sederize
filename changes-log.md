@@ -1,5 +1,25 @@
 # Changes Log - Sederize
 
+## 2026-01-23 18:15 - Reduce PowerSync state updates and query re-renders
+
+### Fichiers modifies
+- `src/providers/powersync-provider.tsx`
+- `src/hooks/use-tasks.ts`
+
+### Problemes identifies
+1. Le status listener PowerSync mettait a jour le state a chaque evenement meme si les valeurs n'avaient pas change
+2. `setLastSyncedAt(new Date())` creait un nouvel objet a chaque sync, causant des re-renders
+3. L'interval `checkPendingChanges` tournait toutes les 5 secondes et mettait a jour le state inutilement
+4. Les hooks `useInboxCount()` et `useWaitingForCount()` dans la sidebar avaient `runQueryOnce: false`
+
+### Solutions
+1. Ajout de guards dans le status listener pour ne mettre a jour le state que si les valeurs changent vraiment
+2. Suppression de la mise a jour de `lastSyncedAt` (causait trop de re-renders)
+3. Augmentation de l'interval de `checkPendingChanges` de 5s a 30s avec guards
+4. Changement de `useInboxCount()` et `useWaitingForCount()` a `runQueryOnce: true`
+
+---
+
 ## 2026-01-23 17:55 - Fix PowerSync reconnection loop on token refresh
 
 ### Fichiers modifies

@@ -294,11 +294,12 @@ export function useInboxTasks() {
 export function useInboxCount() {
   const isPowerSyncReady = usePowerSyncReady();
 
+  // runQueryOnce: true - count refreshes on navigation
   const powerSyncResult = usePowerSyncWatchedQuery<{ count: number }>(
     `SELECT COUNT(*) as count FROM tasks
      WHERE subject_id IS NULL AND theme_id IS NULL AND category_id IS NULL AND status != 'done'`,
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const supabaseResult = useQuery({
@@ -454,10 +455,11 @@ export function useWaitingForTasks() {
 export function useWaitingForCount() {
   const isPowerSyncReady = usePowerSyncReady();
 
+  // runQueryOnce: true - count refreshes on navigation
   const powerSyncResult = usePowerSyncWatchedQuery<{ count: number }>(
     `SELECT COUNT(*) as count FROM tasks WHERE status = 'waiting_for'`,
     [],
-    { runQueryOnce: false }
+    { runQueryOnce: true }
   );
 
   const supabaseResult = useQuery({

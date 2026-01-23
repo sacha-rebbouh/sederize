@@ -106,21 +106,31 @@ export function PowerSyncProvider({ children }: { children: ReactNode }) {
           },
         });
 
-        // Set up status listener
+        // Set up status listener with state change guards
+        let lastConnected = false;
+        let lastSyncing = false;
+
         powerSync.registerListener({
           statusChanged: (status: SyncStatus) => {
             if (!isMounted) return;
 
-            setIsConnected(status.connected ?? false);
-            setIsSyncing(
+            const connected = status.connected ?? false;
+            const syncing =
               (status.dataFlowStatus?.uploading ?? false) ||
-                (status.dataFlowStatus?.downloading ?? false)
-            );
+              (status.dataFlowStatus?.downloading ?? false);
 
-            // Check for pending changes
-            if (status.hasSynced) {
-              setLastSyncedAt(new Date());
+            // Only update state if values actually changed
+            if (connected !== lastConnected) {
+              lastConnected = connected;
+              setIsConnected(connected);
             }
+            if (syncing !== lastSyncing) {
+              lastSyncing = syncing;
+              setIsSyncing(syncing);
+            }
+
+            // Don't update lastSyncedAt on every sync - it causes re-renders
+            // The sync indicator can just show "synced" without the timestamp
           },
         });
 
@@ -172,19 +182,27 @@ export function PowerSyncProvider({ children }: { children: ReactNode }) {
   }, [user?.id]);
 
   // Check for pending changes periodically
+  // Use refs to avoid unnecessary state updates
   useEffect(() => {
     if (!db) return;
+
+    let lastHasPending = false;
+    let lastCount = 0;
 
     const checkPendingChanges = async () => {
       try {
         const transaction = await db.getNextCrudTransaction();
         const hasPending = !!transaction;
-        setHasPendingChanges(hasPending);
+        const count = hasPending && transaction ? transaction.crud.length : 0;
 
-        if (hasPending && transaction) {
-          setPendingChangesCount(transaction.crud.length);
-        } else {
-          setPendingChangesCount(0);
+        // Only update state if values actually changed
+        if (hasPending !== lastHasPending) {
+          lastHasPending = hasPending;
+          setHasPendingChanges(hasPending);
+        }
+        if (count !== lastCount) {
+          lastCount = count;
+          setPendingChangesCount(count);
         }
       } catch {
         // Ignore errors during pending check
@@ -194,8 +212,8 @@ export function PowerSyncProvider({ children }: { children: ReactNode }) {
     // Check immediately
     checkPendingChanges();
 
-    // Check every 5 seconds
-    const interval = setInterval(checkPendingChanges, 5000);
+    // Check every 30 seconds instead of 5 (reduce frequency)
+    const interval = setInterval(checkPendingChanges, 30000);
 
     return () => clearInterval(interval);
   }, [db]);
