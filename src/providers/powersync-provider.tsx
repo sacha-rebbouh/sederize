@@ -3,14 +3,34 @@
 import {
   createContext,
   useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
   ReactNode,
 } from 'react';
-import { PowerSyncDatabase } from '@powersync/web';
+import { PowerSyncContext } from '@powersync/react';
+import { PowerSyncDatabase, SyncStatus } from '@powersync/web';
+import { AppSchema } from '@/lib/powersync/schema';
+import { SupabaseConnector } from '@/lib/powersync/connector';
+import { useAuth } from './auth-provider';
 
 // ============================================
-// TEMPORARY: PowerSync is DISABLED to test if it's causing the iOS Safari crash
-// If the app stops crashing with this, PowerSync WASM is the problem
+// iOS SAFARI DETECTION
 // ============================================
+function isIOSSafari(): boolean {
+  if (typeof window === 'undefined') return false;
+
+  const ua = window.navigator.userAgent;
+  const iOS = /iPad|iPhone|iPod/.test(ua);
+  const webkit = /WebKit/.test(ua);
+  const notChrome = !/CriOS/.test(ua);
+  const notFirefox = !/FxiOS/.test(ua);
+
+  // iOS Safari = iOS + WebKit + not Chrome/Firefox
+  return iOS && webkit && notChrome && notFirefox;
+}
 
 // ============================================
 // TYPES
@@ -24,6 +44,7 @@ interface PowerSyncState {
   lastSyncedAt: Date | null;
   syncError: Error | null;
   triggerSync: () => Promise<void>;
+  isDisabled: boolean;
 }
 
 // ============================================
@@ -38,21 +59,217 @@ const defaultState: PowerSyncState = {
   lastSyncedAt: null,
   syncError: null,
   triggerSync: async () => {},
+  isDisabled: false,
 };
 
 const PowerSyncStateContext = createContext<PowerSyncState>(defaultState);
 
 // ============================================
-// PROVIDER (DISABLED - just passes through children)
+// PROVIDER
 // ============================================
 export function PowerSyncProvider({ children }: { children: ReactNode }) {
-  // PowerSync is disabled - just render children with default (null) context
-  // This forces all hooks to fall back to Supabase queries
+  const { user, session } = useAuth();
+
+  // State
+  const [db, setDb] = useState<PowerSyncDatabase | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [hasPendingChanges] = useState(false);
+  const [pendingChangesCount] = useState(0);
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+  const [syncError, setSyncError] = useState<Error | null>(null);
+  const [isDisabled, setIsDisabled] = useState(false);
+
+  // Ref to track if PowerSync has been initialized
+  const initRef = useRef(false);
+  const powerSyncRef = useRef<PowerSyncDatabase | null>(null);
+
+  // Initialize PowerSync
+  useEffect(() => {
+    // Skip if no user/session
+    if (!user || !session) {
+      if (powerSyncRef.current) {
+        console.log('[PowerSync] User logged out, disconnecting...');
+        powerSyncRef.current.disconnectAndClear().catch(console.error);
+        powerSyncRef.current = null;
+        setDb(null);
+        setIsConnected(false);
+        setIsSyncing(false);
+        initRef.current = false;
+      }
+      return;
+    }
+
+    // Check if PowerSync URL is configured
+    if (!process.env.NEXT_PUBLIC_POWERSYNC_URL) {
+      console.warn('[PowerSync] URL not configured, using Supabase only');
+      setIsDisabled(true);
+      return;
+    }
+
+    // DISABLE ON iOS SAFARI - WASM has issues
+    if (isIOSSafari()) {
+      console.warn('[PowerSync] Disabled on iOS Safari due to WASM issues');
+      setIsDisabled(true);
+      return;
+    }
+
+    // Skip if already initialized
+    if (initRef.current) return;
+    initRef.current = true;
+
+    let isMounted = true;
+
+    const initPowerSync = async () => {
+      try {
+        console.log('[PowerSync] Initializing...');
+
+        const powerSync = new PowerSyncDatabase({
+          schema: AppSchema,
+          database: {
+            dbFilename: `sederize-${user.id}.db`,
+          },
+        });
+        powerSyncRef.current = powerSync;
+
+        // Status listener with guards
+        let lastConnected = false;
+        let lastSyncing = false;
+
+        powerSync.registerListener({
+          statusChanged: (status: SyncStatus) => {
+            if (!isMounted) return;
+
+            const connected = status.connected ?? false;
+            const syncing =
+              (status.dataFlowStatus?.uploading ?? false) ||
+              (status.dataFlowStatus?.downloading ?? false);
+
+            if (connected !== lastConnected) {
+              lastConnected = connected;
+              setIsConnected(connected);
+            }
+            if (syncing !== lastSyncing) {
+              lastSyncing = syncing;
+              setIsSyncing(syncing);
+            }
+          },
+        });
+
+        // Init with timeout
+        const initPromise = powerSync.init();
+        const timeoutPromise = new Promise<void>((_, reject) =>
+          setTimeout(() => reject(new Error('PowerSync init timeout')), 5000)
+        );
+
+        try {
+          await Promise.race([initPromise, timeoutPromise]);
+        } catch (e) {
+          console.warn('[PowerSync] Init failed:', e);
+          setIsDisabled(true);
+          initRef.current = false;
+          return;
+        }
+
+        // Connect
+        const connector = new SupabaseConnector();
+        await powerSync.connect(connector);
+
+        if (isMounted) {
+          setDb(powerSync);
+          setSyncError(null);
+          console.log('[PowerSync] Connected successfully');
+        }
+      } catch (error) {
+        console.error('[PowerSync] Error:', error);
+        if (isMounted) {
+          setSyncError(error instanceof Error ? error : new Error(String(error)));
+          setIsDisabled(true);
+          initRef.current = false;
+        }
+      }
+    };
+
+    initPowerSync();
+
+    return () => {
+      isMounted = false;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (powerSyncRef.current) {
+        powerSyncRef.current.disconnectAndClear().catch(console.error);
+      }
+    };
+  }, []);
+
+  // Manual sync
+  const triggerSync = useCallback(async () => {
+    if (!db) return;
+    try {
+      setIsSyncing(true);
+      const connector = new SupabaseConnector();
+      await db.connect(connector);
+      setLastSyncedAt(new Date());
+      setSyncError(null);
+    } catch (error) {
+      console.error('[PowerSync] Sync error:', error);
+      setSyncError(error instanceof Error ? error : new Error(String(error)));
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [db]);
+
+  // Context value
+  const contextValue = useMemo<PowerSyncState>(
+    () => ({
+      db,
+      isConnected,
+      isSyncing,
+      hasPendingChanges,
+      pendingChangesCount,
+      lastSyncedAt,
+      syncError,
+      triggerSync,
+      isDisabled,
+    }),
+    [db, isConnected, isSyncing, hasPendingChanges, pendingChangesCount, lastSyncedAt, syncError, triggerSync, isDisabled]
+  );
+
+  // IMPORTANT: Always render the same structure to avoid remounts
+  // Use a stable wrapper div instead of conditional rendering
   return (
-    <PowerSyncStateContext.Provider value={defaultState}>
-      {children}
+    <PowerSyncStateContext.Provider value={contextValue}>
+      <PowerSyncContextWrapper db={db}>
+        {children}
+      </PowerSyncContextWrapper>
     </PowerSyncStateContext.Provider>
   );
+}
+
+// Separate component to handle the PowerSync context
+// This prevents the conditional rendering issue
+function PowerSyncContextWrapper({
+  db,
+  children
+}: {
+  db: PowerSyncDatabase | null;
+  children: ReactNode;
+}) {
+  // Always provide context, but with null db if not ready
+  // The hooks will check for null and fall back to Supabase
+  if (db) {
+    return (
+      <PowerSyncContext.Provider value={db}>
+        {children}
+      </PowerSyncContext.Provider>
+    );
+  }
+  return <>{children}</>;
 }
 
 // ============================================
@@ -64,9 +281,13 @@ export function usePowerSyncState(): PowerSyncState {
 }
 
 export function usePowerSyncDb(): PowerSyncDatabase | null {
-  return null; // Always null when disabled
+  const { db } = usePowerSyncState();
+  return db;
 }
 
 export function usePowerSyncReady(): boolean {
-  return false; // Always false when disabled - forces Supabase fallback
+  const { db, isConnected, isDisabled } = usePowerSyncState();
+  // Return false if disabled, forcing Supabase fallback
+  if (isDisabled) return false;
+  return !!db && isConnected;
 }
