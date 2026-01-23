@@ -62,6 +62,8 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
   const [focusOpen, setFocusOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
+  // Track if component just mounted to prevent animation replay on data updates
+  const [hasAnimated, setHasAnimated] = useState(false);
 
   const completeTask = useCompleteTask();
   const updateTask = useUpdateTask();
@@ -118,18 +120,15 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
   return (
     <div ref={ref}>
       <motion.div
-        layout
-        initial={{ opacity: 0, y: 10 }}
+        initial={hasAnimated ? false : { opacity: 0, y: 10 }}
         animate={{
           opacity: isCompleting ? 0.5 : 1,
           y: 0,
           scale: isCompleting ? 0.98 : 1,
         }}
+        onAnimationComplete={() => setHasAnimated(true)}
         exit={{ opacity: 0, x: -20, height: 0 }}
-        transition={{
-          duration: 0.2,
-          layout: { duration: 0.3 }
-        }}
+        transition={{ duration: 0.2 }}
         onClick={handleCardClick}
         className={cn(
           'group relative flex items-start gap-3 p-4 rounded-xl border bg-card cursor-pointer',
@@ -142,10 +141,9 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
       >
         {/* Theme color indicator - left bar */}
         {theme && (
-          <motion.div
+          <div
             className="absolute left-0 top-3 bottom-3 w-1 rounded-full"
             style={{ backgroundColor: theme.color_hex }}
-            layoutId={`theme-${task.id}`}
           />
         )}
 

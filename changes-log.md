@@ -1,5 +1,44 @@
 # Changes Log - Sederize
 
+## 2026-01-23 11:45 - Fix: TaskCard flash on navigation + stability improvements
+
+### Fichiers modifiés
+- `src/components/tasks/task-card.tsx`
+
+### Problèmes
+1. Les TaskCard "flashaient" (animation replay) en naviguant vers All Tasks
+2. L'app crashait avec "un problème récurrent est survenu" après plusieurs navigations
+
+### Causes
+1. **Animation `initial` qui rejouait** - Chaque fois que PowerSync émettait de nouvelles données, les animations `initial={{ opacity: 0, y: 10 }}` rejouaient
+2. **`layout` prop sur motion.div** - Causait des recalculs de layout constants
+3. **`layoutId` sur le theme indicator** - Causait des animations de layout entre cartes
+
+### Solution
+1. Ajout d'un state `hasAnimated` pour empêcher le replay des animations après le premier render
+2. Suppression de la prop `layout` sur le motion.div principal
+3. Remplacement de `motion.div` par `div` pour le theme indicator (suppression du layoutId)
+
+### Changements techniques
+```typescript
+// Avant (flash à chaque update)
+<motion.div
+  layout
+  initial={{ opacity: 0, y: 10 }}
+  ...
+/>
+
+// Après (animation unique au mount)
+const [hasAnimated, setHasAnimated] = useState(false);
+<motion.div
+  initial={hasAnimated ? false : { opacity: 0, y: 10 }}
+  onAnimationComplete={() => setHasAnimated(true)}
+  ...
+/>
+```
+
+---
+
 ## 2026-01-23 11:15 - Fix: Daily Brief slow navigation (4-5x slower than other pages)
 
 ### Fichiers modifiés
