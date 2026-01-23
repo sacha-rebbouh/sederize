@@ -11,25 +11,33 @@ import {
   ReactNode,
 } from 'react';
 import { PowerSyncContext } from '@powersync/react';
-import { PowerSyncDatabase, SyncStatus } from '@powersync/web';
+import {
+  PowerSyncDatabase,
+  SyncStatus,
+  WASQLiteOpenFactory,
+  WASQLiteVFS
+} from '@powersync/web';
 import { AppSchema } from '@/lib/powersync/schema';
 import { SupabaseConnector } from '@/lib/powersync/connector';
 import { useAuth } from './auth-provider';
 
 // ============================================
-// iOS SAFARI DETECTION
+// SAFARI/iOS DETECTION
 // ============================================
-function isIOSSafari(): boolean {
+function isSafariOrIOS(): boolean {
   if (typeof window === 'undefined') return false;
 
   const ua = window.navigator.userAgent;
-  const iOS = /iPad|iPhone|iPod/.test(ua);
-  const webkit = /WebKit/.test(ua);
-  const notChrome = !/CriOS/.test(ua);
-  const notFirefox = !/FxiOS/.test(ua);
 
-  // iOS Safari = iOS + WebKit + not Chrome/Firefox
-  return iOS && webkit && notChrome && notFirefox;
+  // iOS detection (all browsers on iOS are WebKit-based)
+  const iOS = /iPad|iPhone|iPod/.test(ua);
+  if (iOS) return true;
+
+  // macOS Safari detection
+  const isMac = /Macintosh/.test(ua);
+  const isSafari = /Safari/.test(ua) && !/Chrome/.test(ua) && !/Chromium/.test(ua);
+
+  return isMac && isSafari;
 }
 
 // ============================================
@@ -107,13 +115,6 @@ export function PowerSyncProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // DISABLE ON iOS SAFARI - WASM has issues
-    if (isIOSSafari()) {
-      console.warn('[PowerSync] Disabled on iOS Safari due to WASM issues');
-      setIsDisabled(true);
-      return;
-    }
-
     // Skip if already initialized
     if (initRef.current) return;
     initRef.current = true;
@@ -122,12 +123,25 @@ export function PowerSyncProvider({ children }: { children: ReactNode }) {
 
     const initPowerSync = async () => {
       try {
-        console.log('[PowerSync] Initializing...');
+        // Use OPFSCoopSyncVFS for Safari/iOS (better compatibility)
+        // Use IDBBatchAtomicVFS for other browsers (better performance)
+        const useSafariVFS = isSafariOrIOS();
+        const vfs = useSafariVFS
+          ? WASQLiteVFS.OPFSCoopSyncVFS
+          : WASQLiteVFS.IDBBatchAtomicVFS;
+
+        console.log(`[PowerSync] Initializing with VFS: ${vfs} (Safari/iOS: ${useSafariVFS})`);
+
+        const dbFilename = `sederize-${user.id}.db`;
 
         const powerSync = new PowerSyncDatabase({
           schema: AppSchema,
-          database: {
-            dbFilename: `sederize-${user.id}.db`,
+          database: new WASQLiteOpenFactory({
+            dbFilename,
+            vfs,
+          }),
+          flags: {
+            enableMultiTabs: typeof SharedWorker !== 'undefined',
           },
         });
         powerSyncRef.current = powerSync;
