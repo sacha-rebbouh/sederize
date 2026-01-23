@@ -118,18 +118,12 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
   return (
     <div ref={ref}>
       <motion.div
-        layout
-        initial={{ opacity: 0, y: 10 }}
+        initial={false}
         animate={{
           opacity: isCompleting ? 0.5 : 1,
-          y: 0,
           scale: isCompleting ? 0.98 : 1,
         }}
-        exit={{ opacity: 0, x: -20, height: 0 }}
-        transition={{
-          duration: 0.2,
-          layout: { duration: 0.3 }
-        }}
+        transition={{ duration: 0.2 }}
         onClick={handleCardClick}
         className={cn(
           'group relative flex items-start gap-3 p-4 rounded-xl border bg-card cursor-pointer',
@@ -142,10 +136,9 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
       >
         {/* Theme color indicator - left bar */}
         {theme && (
-          <motion.div
+          <div
             className="absolute left-0 top-3 bottom-3 w-1 rounded-full"
             style={{ backgroundColor: theme.color_hex }}
-            layoutId={`theme-${task.id}`}
           />
         )}
 
@@ -217,10 +210,8 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
             <div className="flex-1 min-w-0 overflow-hidden">
               {/* Subject badge */}
               {showSubject && subjectTitle && (
-                <motion.div
+                <div
                   className="flex items-center gap-1.5 mb-1.5"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
                 >
                   <span
                     className="text-xs font-semibold px-2.5 py-0.5 rounded-full"
@@ -231,7 +222,7 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
                   >
                     {subjectTitle}
                   </span>
-                </motion.div>
+                </div>
               )}
 
               {/* Title */}
@@ -265,11 +256,8 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
 
               {/* Metadata row */}
               {!isDone && (
-                <motion.div
+                <div
                   className="flex flex-wrap items-center gap-2 mt-2.5"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.1 }}
                 >
                   {/* Date badge */}
                   {task.do_date && (
@@ -306,7 +294,7 @@ const TaskCardInner = forwardRef<HTMLDivElement, TaskCardProps>(function TaskCar
                   {labels.length > 0 && (
                     <LabelBadges labels={labels} max={2} />
                   )}
-                </motion.div>
+                </div>
               )}
             </div>
 
