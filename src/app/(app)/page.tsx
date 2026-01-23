@@ -75,18 +75,6 @@ function sortTasks(tasks: TaskWithRelations[]): TaskWithRelations[] {
   });
 }
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.03, duration: 0.2 }
-  }
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 10 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.15 } }
-};
 
 export default function DailyBriefPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -338,28 +326,19 @@ export default function DailyBriefPage() {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
+    <div
       className="max-w-3xl mx-auto p-4 md:p-6 space-y-6"
     >
       {/* Header - Centered */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
+      <div
         className="text-center space-y-2"
       >
         <div className="relative flex items-center justify-center">
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Brief du jour</h1>
           {totalTasks === 0 && isToday(selectedDate) && (
-            <motion.span
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: 'spring', delay: 0.3 }}
-              className="absolute -right-8 md:-right-9"
-            >
+            <span className="absolute -right-8 md:-right-9">
               <Sparkles className="h-6 w-6 text-amber-500" />
-            </motion.span>
+            </span>
           )}
         </div>
 
@@ -397,15 +376,10 @@ export default function DailyBriefPage() {
             </Button>
           )}
         </div>
-      </motion.div>
+      </div>
 
       {/* Filters Row - Scrollable on mobile */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="relative"
-      >
+      <div className="relative">
         <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
           <div className="flex items-center gap-2 min-w-max md:justify-center">
           <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -480,16 +454,11 @@ export default function DailyBriefPage() {
         </div>
         {/* Fade gradient to hint more content - mobile only */}
         <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none md:hidden" />
-      </motion.div>
+      </div>
 
       {/* Stats Row - Clickable Filters */}
-      <motion.div
-        className="grid grid-cols-3 gap-2 md:gap-3"
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-      >
-        <motion.div variants={itemVariants} className="h-full">
+      <div className="grid grid-cols-3 gap-2 md:gap-3">
+        <div className="h-full">
           <Card
             onClick={() => setActiveFilter(activeFilter === 'todo' ? 'all' : 'todo')}
             className={cn(
@@ -507,9 +476,9 @@ export default function DailyBriefPage() {
               </div>
             </div>
           </Card>
-        </motion.div>
+        </div>
 
-        <motion.div variants={itemVariants} className="h-full">
+        <div className="h-full">
           <Card
             onClick={() => setActiveFilter(activeFilter === 'waiting' ? 'all' : 'waiting')}
             className={cn(
@@ -527,9 +496,9 @@ export default function DailyBriefPage() {
               </div>
             </div>
           </Card>
-        </motion.div>
+        </div>
 
-        <motion.div variants={itemVariants} className="h-full">
+        <div className="h-full">
           <Card
             onClick={() => setActiveFilter(activeFilter === 'inactive' ? 'all' : 'inactive')}
             className={cn(
@@ -547,8 +516,8 @@ export default function DailyBriefPage() {
               </div>
             </div>
           </Card>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
 
       {/* Active Filter Indicator */}
       <AnimatePresence>
@@ -616,33 +585,21 @@ export default function DailyBriefPage() {
 
       {/* Empty State - Show when filter is 'all' or 'todo' and no tasks (only after loading and sync) */}
       {totalTasks === 0 && (activeFilter === 'all' || activeFilter === 'todo') && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Card className="border-2 border-dashed">
-            <EmptyState
-              type="success"
-              title="Tout est fait !"
-              description="Aucune tache pour aujourd'hui. Profitez de votre liberte ou planifiez a l'avance."
-            />
-          </Card>
-        </motion.div>
+        <Card className="border-2 border-dashed">
+          <EmptyState
+            type="success"
+            title="Tout est fait !"
+            description="Aucune tache pour aujourd'hui. Profitez de votre liberte ou planifiez a l'avance."
+          />
+        </Card>
       )}
 
       {/* Grouped Tasks by Category > Theme - Show when filter is 'all' or 'todo' */}
       {(activeFilter === 'all' || activeFilter === 'todo') && (
-        <motion.div
-          className="space-y-8"
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-        >
+        <div className="space-y-8">
           {groupedByCategory.map((categoryGroup) => (
-            <motion.div
+            <div
               key={categoryGroup.category?.id || 'uncategorized'}
-              variants={itemVariants}
               className="space-y-4"
             >
               {/* Category Header - Centered, prominent */}
@@ -670,10 +627,9 @@ export default function DailyBriefPage() {
                     <div className="flex items-center gap-2">
                       {themeGroup.theme ? (
                         <>
-                          <motion.div
+                          <div
                             className="h-3 w-3 rounded-sm"
                             style={{ backgroundColor: themeGroup.theme.color_hex }}
-                            whileHover={{ scale: 1.2 }}
                           />
                           <h3 className="text-sm font-semibold text-foreground/80">{themeGroup.theme.title}</h3>
                           <Badge variant="secondary" className="text-xs font-medium">
@@ -728,9 +684,9 @@ export default function DailyBriefPage() {
                   </div>
                 ))}
               </div>
-            </motion.div>
+            </div>
           ))}
-        </motion.div>
+        </div>
       )}
 
       {/* Waiting For Section - Show when filter is 'all' or 'waiting' */}
@@ -780,18 +736,13 @@ export default function DailyBriefPage() {
 
       {/* Empty state for Waiting filter */}
       {activeFilter === 'waiting' && (!waitingFor || waitingFor.length === 0) && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <Card className="border-2 border-dashed">
-            <EmptyState
-              type="success"
-              title="Rien en attente"
-              description="Aucune tâche en attente de réponse."
-            />
-          </Card>
-        </motion.div>
+        <Card className="border-2 border-dashed">
+          <EmptyState
+            type="success"
+            title="Rien en attente"
+            description="Aucune tâche en attente de réponse."
+          />
+        </Card>
       )}
 
       {/* Inactive Subjects Alert - Show when filter is 'all' or 'inactive' */}
@@ -816,26 +767,19 @@ export default function DailyBriefPage() {
                   Ces sujets n&apos;ont pas eu d&apos;activité depuis plus de 10 jours.
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {zombies.map((subject, i) => (
-                    <motion.div
-                      key={subject.id}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: i * 0.05 }}
-                    >
-                      <Link href={`/subject/${subject.id}`}>
-                        <Badge
-                          variant="outline"
-                          className="cursor-pointer hover:bg-accent hover:scale-105 transition-all"
-                        >
-                          <div
-                            className="h-2 w-2 rounded-full mr-1.5"
-                            style={{ backgroundColor: subject.theme?.color_hex }}
-                          />
-                          {subject.title}
-                        </Badge>
-                      </Link>
-                    </motion.div>
+                  {zombies.map((subject) => (
+                    <Link key={subject.id} href={`/subject/${subject.id}`}>
+                      <Badge
+                        variant="outline"
+                        className="cursor-pointer hover:bg-accent hover:scale-105 transition-all"
+                      >
+                        <div
+                          className="h-2 w-2 rounded-full mr-1.5"
+                          style={{ backgroundColor: subject.theme?.color_hex }}
+                        />
+                        {subject.title}
+                      </Badge>
+                    </Link>
                   ))}
                 </div>
               </CardContent>
@@ -846,18 +790,13 @@ export default function DailyBriefPage() {
 
       {/* Empty state for Inactive filter */}
       {activeFilter === 'inactive' && (!zombies || zombies.length === 0) && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <Card className="border-2 border-dashed">
-            <EmptyState
-              type="success"
-              title="Tout est actif"
-              description="Aucun sujet inactif depuis plus de 10 jours."
-            />
-          </Card>
-        </motion.div>
+        <Card className="border-2 border-dashed">
+          <EmptyState
+            type="success"
+            title="Tout est actif"
+            description="Aucun sujet inactif depuis plus de 10 jours."
+          />
+        </Card>
       )}
 
       {/* Bottom padding for FAB */}
@@ -874,6 +813,6 @@ export default function DailyBriefPage() {
           subjectId: selectedTask?.subject_id || null,
         }}
       />
-    </motion.div>
+    </div>
   );
 }
