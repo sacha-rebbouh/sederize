@@ -1,5 +1,53 @@
 # Changes Log - Sederize
 
+## 2026-01-23 12:15 - CRITICAL FIX: Centralized RelatedData to prevent query duplication
+
+### Fichiers modifiés
+- `src/providers/related-data-provider.tsx` (nouveau)
+- `src/providers/index.tsx`
+- `src/hooks/use-tasks.ts`
+
+### Problème critique
+**51 watched queries PowerSync** s'exécutaient en parallèle, causant :
+1. Crash "un problème récurrent est survenu" après plusieurs navigations
+2. Re-renders en cascade (16+ par sync sur Daily Brief)
+3. Flash des TaskCard
+
+### Cause racine
+Chaque hook de tâche (`useDailyBriefTasks`, `useWaitingForTasks`, etc.) créait **ses propres 5 instances** de watched queries via `useRelatedData()` :
+- subjects, themes, categories, labels, task_labels
+
+Sur Daily Brief seule : 2 hooks × 5 queries = 10 queries dupliquées
++ autres hooks = ~16 queries pour les mêmes données !
+
+### Solution : Contexte partagé
+Création de `RelatedDataProvider` :
+- **5 queries uniques** pour toute l'application
+- Montées une seule fois au niveau root
+- Partagées via Context entre tous les hooks
+
+### Avant/Après
+```
+AVANT:
+- Daily Brief: ~16 watched queries
+- All Tasks: ~12 watched queries
+- Chaque navigation: nouvelles instances
+- Total en naviguant: 50+ queries actives
+
+APRÈS:
+- Application entière: 5 watched queries
+- Navigation: réutilise les mêmes
+- Total constant: 5 queries
+```
+
+### Impact attendu
+- Fin des crashs "problème récurrent"
+- Navigation fluide entre les pages
+- Plus de flash des TaskCard
+- Performance améliorée
+
+---
+
 ## 2026-01-23 11:45 - Fix: TaskCard flash on navigation + stability improvements
 
 ### Fichiers modifiés

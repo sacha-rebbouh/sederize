@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { useQuery as usePowerSyncWatchedQuery } from '@powersync/react';
 import { createClient } from '@/lib/supabase/client';
 import { usePowerSyncDb, usePowerSyncReady } from '@/providers/powersync-provider';
+import { useRelatedData } from '@/providers/related-data-provider';
 import { useAuth } from '@/providers/auth-provider';
 import { queryKeys } from '@/lib/query-keys';
 import { STALE_TIMES } from '@/providers/query-provider';
@@ -86,65 +87,10 @@ function transformTaskWithRelations(
 }
 
 // ============================================
-// SHARED DATA HOOKS (for PowerSync mode)
+// SHARED DATA - Now provided by RelatedDataProvider context
+// useRelatedData() is imported from '@/providers/related-data-provider'
+// This eliminates duplicate PowerSync watched queries across hooks
 // ============================================
-
-function useRelatedData() {
-  const subjectsResult = usePowerSyncWatchedQuery<Subject>(
-    'SELECT * FROM subjects',
-    [],
-    { runQueryOnce: false }
-  );
-
-  const themesResult = usePowerSyncWatchedQuery<Theme>(
-    'SELECT * FROM themes',
-    [],
-    { runQueryOnce: false }
-  );
-
-  const categoriesResult = usePowerSyncWatchedQuery<Category>(
-    'SELECT * FROM categories',
-    [],
-    { runQueryOnce: false }
-  );
-
-  const labelsResult = usePowerSyncWatchedQuery<Label>(
-    'SELECT * FROM labels',
-    [],
-    { runQueryOnce: false }
-  );
-
-  const taskLabelsResult = usePowerSyncWatchedQuery<TaskLabel>(
-    'SELECT task_id, label_id FROM task_labels',
-    [],
-    { runQueryOnce: false }
-  );
-
-  return useMemo(() => ({
-    subjects: new Map((subjectsResult.data ?? []).map((s) => [s.id, s])),
-    themes: new Map((themesResult.data ?? []).map((t) => [t.id, t])),
-    categories: new Map((categoriesResult.data ?? []).map((c) => [c.id, c])),
-    labels: new Map((labelsResult.data ?? []).map((l) => [l.id, l])),
-    taskLabels: (taskLabelsResult.data ?? []) as TaskLabel[],
-    isLoading:
-      subjectsResult.isLoading ||
-      themesResult.isLoading ||
-      categoriesResult.isLoading ||
-      labelsResult.isLoading ||
-      taskLabelsResult.isLoading,
-  }), [
-    subjectsResult.data,
-    themesResult.data,
-    categoriesResult.data,
-    labelsResult.data,
-    taskLabelsResult.data,
-    subjectsResult.isLoading,
-    themesResult.isLoading,
-    categoriesResult.isLoading,
-    labelsResult.isLoading,
-    taskLabelsResult.isLoading,
-  ]);
-}
 
 // ============================================
 // READ HOOKS (PowerSync local SQLite)
