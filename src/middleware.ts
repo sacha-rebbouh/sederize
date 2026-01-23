@@ -1,8 +1,10 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-// Cookie name for preferred view (must match settings page)
+// Cookie names (must match client.ts)
 const PREFERRED_VIEW_COOKIE = 'sederize-preferred-view';
+const REMEMBER_ME_COOKIE = 'sederize-remember-me';
+const SESSION_ACTIVE_COOKIE = 'sederize-session-active';
 
 // Route mapping for preferred views
 const VIEW_ROUTES: Record<string, string> = {
@@ -43,6 +45,30 @@ export async function middleware(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // Check "remember me" logic BEFORE other auth checks
+  // If user has a session but: rememberMe=false AND sessionActive cookie is missing
+  // This means it's a new browser session and they didn't want to stay logged in
+  if (user) {
+    const rememberMe = request.cookies.get(REMEMBER_ME_COOKIE)?.value;
+    const sessionActive = request.cookies.get(SESSION_ACTIVE_COOKIE)?.value;
+
+    // rememberMe === 'false' means explicitly unchecked (not just missing/default)
+    if (rememberMe === 'false' && !sessionActive) {
+      // Sign out the user
+      await supabase.auth.signOut();
+
+      // Redirect to login
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      const response = NextResponse.redirect(url);
+
+      // Clear the remember me cookie too
+      response.cookies.delete(REMEMBER_ME_COOKIE);
+
+      return response;
+    }
+  }
 
   // Protected routes - redirect to login if not authenticated
   if (

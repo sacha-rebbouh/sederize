@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, clearRememberMeCookies } from '@/lib/supabase/client';
 
 export default function SignOutPage() {
   const router = useRouter();
@@ -17,6 +17,9 @@ export default function SignOutPage() {
 
     const performSignOut = async () => {
       const supabase = createClient();
+
+      // Clear remember me cookies before signing out
+      clearRememberMeCookies();
 
       // Sign out from Supabase
       await supabase.auth.signOut();
