@@ -1,5 +1,27 @@
 # Changes Log - Sederize
 
+## 2026-01-23 19:00 - Disable PowerSync on iOS Safari (WASM crash fix)
+
+### Fichiers modifies
+- `src/providers/powersync-provider.tsx`
+
+### Probleme
+PowerSync utilise WASM (wa-sqlite) pour SQLite local. Sur iOS Safari, les limitations memoire WASM causaient des crashs apres 10-35 secondes avec le message "Impossible d'ouvrir cette page".
+
+### Solution
+Detection de iOS Safari via User Agent et desactivation complete de PowerSync:
+- `isIOSSafari()`: Detecte iPad/iPhone/iPod + WebKit + pas Chrome/Firefox
+- Si iOS Safari: `setIsDisabled(true)` et return early
+- `usePowerSyncReady()` retourne `false` quand disabled, forcant le fallback Supabase
+- PowerSync fonctionne normalement sur desktop et Android
+
+### Impact
+- iOS Safari: Pas d'offline (Supabase direct), mais pas de crash
+- Autres plateformes: PowerSync continue de fonctionner normalement
+- Compromis temporaire en attendant une meilleure solution WASM
+
+---
+
 ## 2026-01-23 18:30 - Set ALL PowerSync queries to runQueryOnce: true
 
 ### Fichiers modifies
