@@ -113,8 +113,7 @@ function useRelatedData() {
 
   const labelsResult = usePowerSyncWatchedQuery<Label>(
     'SELECT * FROM labels',
-    [],
-    { runQueryOnce: true }
+    []
   );
 
   // task_labels - needs to react to label changes
