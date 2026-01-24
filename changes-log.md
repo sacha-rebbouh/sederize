@@ -1,5 +1,21 @@
 # Changes Log - Sederize
 
+## 2026-01-23 19:40 - Fix labels not displaying on tasks
+
+### Fichiers modifies
+- `src/hooks/use-tasks.ts`
+
+### Probleme
+Les labels crees et assignes aux taches ne s'affichaient pas sur les TaskCard.
+
+### Cause
+La query `labels` dans `useRelatedData()` avait encore `runQueryOnce: true`. Quand un nouveau label etait cree, la Map des labels ne se mettait pas a jour, donc le join en memoire ne trouvait pas le label.
+
+### Solution
+Retirer `runQueryOnce: true` de la query labels pour qu'elle reagisse aux changements.
+
+---
+
 ## 2026-01-23 19:30 - Enable reactive queries for real-time UI updates
 
 ### Fichiers modifies
