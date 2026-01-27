@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Settings as SettingsIcon,
   User,
@@ -10,12 +10,18 @@ import {
   Moon,
   Monitor,
   Download,
+  Upload,
   Keyboard,
   Bell,
   Layers,
   Lock,
   Loader2,
   CheckCircle2,
+  CloudOff,
+  Cloud,
+  RefreshCw,
+  AlertTriangle,
+  HardDrive,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
@@ -100,6 +106,158 @@ export default function SettingsPage() {
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const supabase = createClient();
+
+  // Backup state
+  const [backupStatus, setBackupStatus] = useState<{
+    exists: boolean;
+    created_at?: string;
+    total_records?: number;
+    loading: boolean;
+    error?: string;
+  }>({ exists: false, loading: true });
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [restoreLoading, setRestoreLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch backup status
+  const fetchBackupStatus = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const response = await fetch('/api/backup/status', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setBackupStatus({ ...data, loading: false });
+      } else {
+        setBackupStatus({ exists: false, loading: false, error: 'Erreur lors de la vérification' });
+      }
+    } catch {
+      setBackupStatus({ exists: false, loading: false, error: 'Erreur de connexion' });
+    }
+  }, [user, supabase.auth]);
+
+  useEffect(() => {
+    fetchBackupStatus();
+  }, [fetchBackupStatus]);
+
+  // Create backup
+  const handleCreateBackup = async () => {
+    setBackupLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error('Session expirée, veuillez vous reconnecter');
+        return;
+      }
+
+      const response = await fetch('/api/backup', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success(`Backup créé: ${data.total_records} enregistrements sauvegardés`);
+        fetchBackupStatus();
+      } else {
+        toast.error(data.error || 'Erreur lors de la création du backup');
+      }
+    } catch {
+      toast.error('Erreur de connexion');
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  // Download backup
+  const handleDownloadBackup = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error('Session expirée, veuillez vous reconnecter');
+        return;
+      }
+
+      const response = await fetch('/api/backup/download', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `sederize-backup-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast.success('Backup téléchargé');
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Erreur lors du téléchargement');
+      }
+    } catch {
+      toast.error('Erreur de connexion');
+    }
+  };
+
+  // Restore from file
+  const handleRestoreFromFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setRestoreLoading(true);
+    try {
+      const content = await file.text();
+      const backupData = JSON.parse(content);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error('Session expirée, veuillez vous reconnecter');
+        return;
+      }
+
+      const response = await fetch('/api/backup/restore', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(backupData),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast.success(`Restauration réussie: ${data.total_records_restored} enregistrements restaurés`);
+        // Reload page to refresh all data
+        window.location.reload();
+      } else {
+        toast.error(data.error || 'Erreur lors de la restauration');
+      }
+    } catch {
+      toast.error('Fichier de backup invalide');
+    } finally {
+      setRestoreLoading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -191,9 +349,19 @@ export default function SettingsPage() {
     setDeleteCategoryDialog({ open: true, id: categoryId, title });
   };
 
-  const handleExportData = async () => {
-    // TODO: Implement full data export
-    toast.success('Fonctionnalite d\'export bientot disponible !');
+  const formatBackupDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return dateStr;
+    }
   };
 
   return (
@@ -622,20 +790,123 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Data Management */}
+      {/* Backup & Restore */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <Download className="h-5 w-5" />
-            Donnees
+            <HardDrive className="h-5 w-5" />
+            Sauvegarde & Restauration
           </CardTitle>
-          <CardDescription>Exportez ou gerez vos donnees</CardDescription>
+          <CardDescription>
+            Backup automatique quotidien à 3h du matin. Au pire, 24h de données perdues.
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Button variant="outline" onClick={handleExportData}>
-            <Download className="h-4 w-4 mr-2" />
-            Exporter toutes les donnees
-          </Button>
+        <CardContent className="space-y-4">
+          {/* Backup Status */}
+          <div className="p-4 rounded-lg border bg-muted/30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {backupStatus.loading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                ) : backupStatus.exists ? (
+                  <Cloud className="h-5 w-5 text-green-500" />
+                ) : (
+                  <CloudOff className="h-5 w-5 text-amber-500" />
+                )}
+                <div>
+                  <p className="font-medium">
+                    {backupStatus.loading
+                      ? 'Vérification...'
+                      : backupStatus.exists
+                      ? 'Backup disponible'
+                      : 'Aucun backup'}
+                  </p>
+                  {backupStatus.exists && backupStatus.created_at && (
+                    <p className="text-sm text-muted-foreground">
+                      Créé le {formatBackupDate(backupStatus.created_at)}
+                      {backupStatus.total_records && ` • ${backupStatus.total_records} enregistrements`}
+                    </p>
+                  )}
+                  {backupStatus.error && (
+                    <p className="text-sm text-destructive flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" />
+                      {backupStatus.error}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={fetchBackupStatus}
+                disabled={backupStatus.loading}
+              >
+                <RefreshCw className={cn('h-4 w-4', backupStatus.loading && 'animate-spin')} />
+              </Button>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="default"
+              onClick={handleCreateBackup}
+              disabled={backupLoading}
+            >
+              {backupLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Création...
+                </>
+              ) : (
+                <>
+                  <Cloud className="h-4 w-4 mr-2" />
+                  Créer un backup maintenant
+                </>
+              )}
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={handleDownloadBackup}
+              disabled={!backupStatus.exists || backupStatus.loading}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Télécharger
+            </Button>
+
+            <div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".json"
+                onChange={handleRestoreFromFile}
+                className="hidden"
+              />
+              <Button
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={restoreLoading}
+              >
+                {restoreLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Restauration...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Restaurer depuis fichier
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Le backup automatique s&apos;exécute chaque jour à 3h du matin (UTC).
+            Utilisez &quot;Télécharger&quot; pour garder une copie locale.
+          </p>
         </CardContent>
       </Card>
 

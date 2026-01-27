@@ -1,5 +1,41 @@
 # Changes Log - Sederize
 
+## 2026-01-27 - Systeme de backup automatique quotidien
+
+### Fichiers crees
+- `src/app/api/backup/route.ts` - API pour creer un backup (POST: manuel, GET: cron)
+- `src/app/api/backup/download/route.ts` - API pour telecharger le backup
+- `src/app/api/backup/restore/route.ts` - API pour restaurer depuis un fichier
+- `src/app/api/backup/status/route.ts` - API pour verifier le statut du backup
+- `vercel.json` - Configuration Vercel Cron (backup quotidien a 3h UTC)
+- `supabase/migrations/006_add_backup_storage.sql` - Bucket storage pour backups
+
+### Fichiers modifies
+- `src/app/(app)/settings/page.tsx` - Section "Sauvegarde & Restauration"
+- `.env.local.example` - Variables SUPABASE_SERVICE_ROLE_KEY et CRON_SECRET
+
+### Fonctionnalites
+1. **Backup automatique quotidien** : Vercel Cron execute le backup a 3h UTC chaque jour
+2. **Backup manuel** : Bouton dans Settings pour creer un backup immediatement
+3. **Telechargement** : Exporter le backup en fichier JSON local
+4. **Restauration** : Importer un fichier backup pour restaurer les donnees
+5. **Statut en temps reel** : Affichage de la date et du nombre d'enregistrements du dernier backup
+
+### Tables sauvegardees
+- profiles, categories, themes, subjects, labels, tasks, task_labels, task_attachments, pending_items, user_preferences
+
+### Configuration requise
+1. Ajouter `SUPABASE_SERVICE_ROLE_KEY` dans les variables d'environnement Vercel
+2. Ajouter `CRON_SECRET` dans Vercel (generer avec `openssl rand -hex 32`)
+3. Executer la migration SQL pour creer le bucket 'backups' dans Supabase Storage
+
+### Securite
+- Le cron est protege par un secret (CRON_SECRET)
+- Les backups sont stockes dans un bucket prive
+- Un utilisateur ne peut restaurer que ses propres donnees
+
+---
+
 ## 2026-01-23 19:40 - Fix labels not displaying on tasks
 
 ### Fichiers modifies
