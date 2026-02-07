@@ -136,10 +136,9 @@ export default function AllTasksPage() {
         if (dateFilter === 'later' && label !== 'Later') return false;
         if (dateFilter === 'no-date' && task.do_date) return false;
       }
-      // Category filter (via theme)
+      // Category filter (use resolved category from task)
       if (categoryFilter !== 'all') {
-        const taskTheme = themes?.find((t) => t.id === task.theme?.id);
-        if (taskTheme?.category_id !== categoryFilter) return false;
+        if (task.category?.id !== categoryFilter) return false;
       }
       if (themeFilter !== 'all' && task.theme?.id !== themeFilter) {
         return false;
@@ -149,7 +148,7 @@ export default function AllTasksPage() {
       }
       return true;
     });
-  }, [allTasks, search, statusFilter, dateFilter, categoryFilter, themeFilter, subjectFilter, themes]);
+  }, [allTasks, search, statusFilter, dateFilter, categoryFilter, themeFilter, subjectFilter]);
 
   // Sort tasks: done at bottom, then by priority
   const sortTasksWithDoneAtBottom = (tasks: TaskWithRelations[]) => {

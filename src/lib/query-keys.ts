@@ -34,6 +34,10 @@ export const queryKeys = {
       [...queryKeys.tasks.lists(), { view: 'all-unlimited' }] as const,
     bySubject: (subjectId: string) =>
       [...queryKeys.tasks.lists(), { view: 'subject', subjectId }] as const,
+    byTheme: (themeId: string) =>
+      [...queryKeys.tasks.lists(), { view: 'theme', themeId }] as const,
+    byCategory: (categoryId: string) =>
+      [...queryKeys.tasks.lists(), { view: 'category', categoryId }] as const,
     subtasks: (parentId: string) =>
       [...queryKeys.tasks.lists(), { view: 'subtasks', parentId }] as const,
 

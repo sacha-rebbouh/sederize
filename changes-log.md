@@ -1,5 +1,37 @@
 # Changes Log - Sederize
 
+## 2026-02-06 - Double-clic sur themes et categories dans la sidebar
+
+### Fichiers crees
+- `src/app/(app)/theme/[id]/page.tsx` - Page affichant toutes les taches d'un theme, groupees par sujet
+- `src/app/(app)/category/[id]/page.tsx` - Page affichant toutes les taches d'une categorie, groupees par theme/sujet
+
+### Fichiers modifies
+- `src/components/layout/sidebar.tsx` - Ajout `onDoubleClick` sur les boutons theme et categorie
+- `src/hooks/use-tasks.ts` - Ajout hooks `useThemeTasks(themeId)` et `useCategoryTasks(categoryId)`
+- `src/lib/query-keys.ts` - Ajout query keys `byTheme` et `byCategory`
+
+### Description
+Double-cliquer sur un theme dans la sidebar navigue vers `/theme/[id]` qui affiche toutes les taches liees a ce theme (via ses sujets ou assignation directe), groupees par sujet. Double-cliquer sur une categorie navigue vers `/category/[id]` qui affiche toutes les taches de la categorie, groupees par theme puis par sujet. Le simple clic continue de toggle l'ouverture/fermeture comme avant.
+
+---
+
+## 2026-02-06 - Fix filtre par categorie dans "Toutes les taches"
+
+### Fichiers modifies
+- `src/app/(app)/tasks/page.tsx` - Correction du filtre catégorie
+
+### Probleme
+Le filtre par catégorie dans la page "Toutes les tâches" ne fonctionnait pas : les tâches d'une catégorie n'apparaissaient pas quand on filtrait par cette catégorie.
+
+### Cause racine
+Le filtre faisait un lookup indirect via un tableau `themes` séparé (de `useThemes()`) pour retrouver le `category_id` du thème de la tâche. Ce lookup pouvait échouer car `useThemes()` utilise `runQueryOnce: true` sur PowerSync et pouvait avoir un snapshot désynchronisé des données.
+
+### Fix
+Utilisation directe de `task.category?.id` (déjà résolu par `transformTaskWithRelations` dans le hook `useAllTasksUnlimited`) au lieu du lookup indirect via `themes?.find()`. Suppression de `themes` des dépendances du `useMemo`.
+
+---
+
 ## 2026-01-27 - Systeme de backup automatique quotidien
 
 ### Fichiers crees

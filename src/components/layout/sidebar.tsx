@@ -216,6 +216,16 @@ export function Sidebar({
     return button;
   };
 
+  // Navigate to theme page on double-click
+  const handleThemeDoubleClick = useCallback((themeId: string) => {
+    router.push(`/theme/${themeId}`);
+  }, [router]);
+
+  // Navigate to category page on double-click
+  const handleCategoryDoubleClick = useCallback((categoryId: string) => {
+    router.push(`/category/${categoryId}`);
+  }, [router]);
+
   // Render a theme with its subjects
   const renderTheme = (theme: Theme) => (
     <div key={theme.id}>
@@ -228,6 +238,10 @@ export function Sidebar({
             <Button
               variant="ghost"
               className="flex-1 justify-start gap-2 h-8 text-sm"
+              onDoubleClick={(e) => {
+                e.preventDefault();
+                handleThemeDoubleClick(theme.id);
+              }}
             >
               <div
                 className="h-2.5 w-2.5 rounded-sm flex-shrink-0"
@@ -370,6 +384,12 @@ export function Sidebar({
             <Button
               variant="ghost"
               className="flex-1 justify-start gap-2"
+              onDoubleClick={(e) => {
+                if (category.id !== 'uncategorized') {
+                  e.preventDefault();
+                  handleCategoryDoubleClick(category.id);
+                }
+              }}
             >
               {openCategories[category.id] ? (
                 <FolderOpen className="h-4 w-4" style={{ color: category.color_hex }} />

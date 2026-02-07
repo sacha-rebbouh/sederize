@@ -382,6 +382,168 @@ export function useSubjectTasks(subjectId: string) {
   return supabaseResult;
 }
 
+// Tasks for a specific theme (all subjects under that theme + direct theme assignments)
+export function useThemeTasks(themeId: string) {
+  const isPowerSyncReady = usePowerSyncReady();
+  const relatedData = useRelatedData();
+
+  const tasksResult = usePowerSyncWatchedQuery<Task>(
+    `SELECT * FROM tasks
+     WHERE subject_id IN (SELECT id FROM subjects WHERE theme_id = ?)
+        OR theme_id = ?
+     ORDER BY status ASC, order_index ASC`,
+    [themeId, themeId]
+  );
+
+  const tasksWithRelations = useMemo(() => {
+    const tasks = (tasksResult.data ?? []) as Task[];
+    return tasks.map((task) =>
+      transformTaskWithRelations(
+        task,
+        relatedData.subjects,
+        relatedData.themes,
+        relatedData.categories,
+        relatedData.taskLabels,
+        relatedData.labels
+      )
+    );
+  }, [tasksResult.data, relatedData]);
+
+  const supabaseResult = useQuery({
+    queryKey: queryKeys.tasks.byTheme(themeId),
+    queryFn: async () => {
+      const supabase = createClient();
+
+      // Get subjects for this theme
+      const { data: themeSubjects } = await supabase
+        .from('subjects')
+        .select('id')
+        .eq('theme_id', themeId);
+
+      const subjectIds = themeSubjects?.map((s: { id: string }) => s.id) || [];
+
+      // Get tasks for these subjects + direct theme assignments
+      let query = supabase
+        .from('tasks')
+        .select(`*, task_labels(label:labels(*))`)
+        .order('status', { ascending: true })
+        .order('order_index', { ascending: true });
+
+      if (subjectIds.length > 0) {
+        query = query.or(`subject_id.in.(${subjectIds.join(',')}),theme_id.eq.${themeId}`);
+      } else {
+        query = query.eq('theme_id', themeId);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return transformTasks(data);
+    },
+    enabled: !!themeId && !isPowerSyncReady,
+    staleTime: STALE_TIMES.tasks,
+  });
+
+  if (isPowerSyncReady) {
+    return {
+      data: tasksWithRelations,
+      isLoading: tasksResult.isLoading || relatedData.isLoading,
+      isFetching: tasksResult.isFetching,
+      error: tasksResult.error ?? null,
+      refetch: tasksResult.refresh,
+    };
+  }
+
+  return supabaseResult;
+}
+
+// Tasks for a specific category (all themes/subjects under that category + direct assignments)
+export function useCategoryTasks(categoryId: string) {
+  const isPowerSyncReady = usePowerSyncReady();
+  const relatedData = useRelatedData();
+
+  const tasksResult = usePowerSyncWatchedQuery<Task>(
+    `SELECT * FROM tasks
+     WHERE subject_id IN (SELECT id FROM subjects WHERE theme_id IN (SELECT id FROM themes WHERE category_id = ?))
+        OR theme_id IN (SELECT id FROM themes WHERE category_id = ?)
+        OR category_id = ?
+     ORDER BY status ASC, order_index ASC`,
+    [categoryId, categoryId, categoryId]
+  );
+
+  const tasksWithRelations = useMemo(() => {
+    const tasks = (tasksResult.data ?? []) as Task[];
+    return tasks.map((task) =>
+      transformTaskWithRelations(
+        task,
+        relatedData.subjects,
+        relatedData.themes,
+        relatedData.categories,
+        relatedData.taskLabels,
+        relatedData.labels
+      )
+    );
+  }, [tasksResult.data, relatedData]);
+
+  const supabaseResult = useQuery({
+    queryKey: queryKeys.tasks.byCategory(categoryId),
+    queryFn: async () => {
+      const supabase = createClient();
+
+      // Get themes for this category
+      const { data: categoryThemes } = await supabase
+        .from('themes')
+        .select('id')
+        .eq('category_id', categoryId);
+
+      const themeIds = categoryThemes?.map((t: { id: string }) => t.id) || [];
+
+      // Get subjects for these themes
+      let subjectIds: string[] = [];
+      if (themeIds.length > 0) {
+        const { data: themeSubjects } = await supabase
+          .from('subjects')
+          .select('id')
+          .in('theme_id', themeIds);
+        subjectIds = themeSubjects?.map((s: { id: string }) => s.id) || [];
+      }
+
+      // Build OR filter
+      const orFilters: string[] = [];
+      if (subjectIds.length > 0) {
+        orFilters.push(`subject_id.in.(${subjectIds.join(',')})`);
+      }
+      if (themeIds.length > 0) {
+        orFilters.push(`theme_id.in.(${themeIds.join(',')})`);
+      }
+      orFilters.push(`category_id.eq.${categoryId}`);
+
+      const { data, error } = await supabase
+        .from('tasks')
+        .select(`*, task_labels(label:labels(*))`)
+        .or(orFilters.join(','))
+        .order('status', { ascending: true })
+        .order('order_index', { ascending: true });
+
+      if (error) throw error;
+      return transformTasks(data);
+    },
+    enabled: !!categoryId && !isPowerSyncReady,
+    staleTime: STALE_TIMES.tasks,
+  });
+
+  if (isPowerSyncReady) {
+    return {
+      data: tasksWithRelations,
+      isLoading: tasksResult.isLoading || relatedData.isLoading,
+      isFetching: tasksResult.isFetching,
+      error: tasksResult.error ?? null,
+      refetch: tasksResult.refresh,
+    };
+  }
+
+  return supabaseResult;
+}
+
 // Waiting for tasks
 export function useWaitingForTasks() {
   const isPowerSyncReady = usePowerSyncReady();
